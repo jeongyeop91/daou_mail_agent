@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from agents.collector import fetch_recent_emails
+from approval_loop import propose_action
 from core.models import EmailItem
 from core.session_store import get_email_by_index, save_last_results
 
@@ -21,6 +22,7 @@ class ScheduleCandidate:
     start_at: datetime
     end_at: datetime
     description: str
+    location: str
     source_email: EmailItem
 
 
@@ -62,6 +64,19 @@ def _extract_title(subject: str) -> str:
     return title.strip(' -') or subject.strip()
 
 
+def _extract_location(text: str) -> str:
+    patterns = [
+        r'(?:장소|위치)\s*[:：]\s*([^\n<]+)',
+        r'(Conference Room[^\n<]*)',
+        r'(서울사옥[^\n<]*)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return ''
+
+
 def extract_schedule_candidate(email: EmailItem) -> ScheduleCandidate | None:
     text = f'{email.subject}\n{email.body}'
     if not any(token in text for token in ['일정', '미팅', '회의', '면담', '방문']):
@@ -71,10 +86,11 @@ def extract_schedule_candidate(email: EmailItem) -> ScheduleCandidate | None:
         return None
     title = _extract_title(email.subject)
     description = (email.body or '').strip()[:2000]
+    location = _extract_location(email.body or '')
     if start_at.tzinfo is None:
         start_at = start_at.replace(tzinfo=KST)
     end_at = start_at + timedelta(minutes=DEFAULT_DURATION_MINUTES)
-    return ScheduleCandidate(title=title, start_at=start_at, end_at=end_at, description=description, source_email=email)
+    return ScheduleCandidate(title=title, start_at=start_at, end_at=end_at, description=description, location=location, source_email=email)
 
 
 def list_schedule_candidate_emails(limit: int = 10) -> list[EmailItem]:
@@ -95,10 +111,54 @@ def build_schedule_mail_briefing(limit: int = 10) -> str:
             continue
         lines.append(f'{idx}. {candidate.title}')
         lines.append(f'일정: {candidate.start_at.strftime("%Y-%m-%d %H:%M")} ~ {candidate.end_at.strftime("%H:%M")}')
+        if candidate.location:
+            lines.append(f'장소: {candidate.location}')
         lines.append(f'보낸 사람: {email.sender}')
-        lines.append(f'바로 하기: {idx}번 메일 구글일정 등록해줘')
+        lines.append(f'바로 하기: {idx}번 메일 일정등록 제안해줘')
         lines.append('')
     return '\n'.join(lines[:-1])
+
+
+def _find_duplicate_event(candidate: ScheduleCandidate) -> bool:
+    cmd = [
+        'gog', 'calendar', 'events', CALENDAR_ID,
+        '--from', candidate.start_at.isoformat(),
+        '--to', candidate.end_at.isoformat(),
+        '--json',
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        data = json.loads((result.stdout or '').strip() or '{}')
+        events = data.get('events', []) if isinstance(data, dict) else []
+    except Exception:
+        return False
+    normalized = candidate.title.strip().lower()
+    for event in events:
+        summary = str(event.get('summary', '')).strip().lower()
+        if summary == normalized:
+            return True
+    return False
+
+
+def propose_email_to_google_calendar(index: int) -> str:
+    saved = get_email_by_index(index)
+    if not saved:
+        return '참조할 일정 메일을 찾지 못했습니다. 먼저 일정 메일 브리핑을 조회해 주세요.'
+    email = EmailItem(**saved)
+    candidate = extract_schedule_candidate(email)
+    if not candidate:
+        return '해당 메일에서 일정 정보를 추출하지 못했습니다.'
+    if _find_duplicate_event(candidate):
+        return '같은 제목과 시간대의 일정이 이미 구글 캘린더에 있어 등록을 보류했습니다.'
+    payload = {
+        'kind': 'calendar_register',
+        'title': candidate.title,
+        'start_at': candidate.start_at.isoformat(),
+        'end_at': candidate.end_at.isoformat(),
+        'description': candidate.description,
+        'location': candidate.location,
+    }
+    return propose_action(f'구글 일정 등록: {candidate.title}', payload)
 
 
 def register_email_to_google_calendar(index: int) -> str:
@@ -118,6 +178,8 @@ def register_email_to_google_calendar(index: int) -> str:
     ]
     if candidate.description:
         cmd.extend(['--description', candidate.description])
+    if candidate.location:
+        cmd.extend(['--location', candidate.location])
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)

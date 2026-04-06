@@ -23,19 +23,46 @@ def _save_execs(items: list[dict]) -> None:
     EXEC_PATH.write_text(json.dumps(items, ensure_ascii=False, indent=2))
 
 
+def _execute_calendar_register(payload: dict) -> str:
+    import subprocess
+
+    cmd = [
+        'gog', 'calendar', 'create', 'primary',
+        '--summary', payload['title'],
+        '--from', payload['start_at'],
+        '--to', payload['end_at'],
+    ]
+    if payload.get('description'):
+        cmd.extend(['--description', payload['description']])
+    if payload.get('location'):
+        cmd.extend(['--location', payload['location']])
+    try:
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        message = (e.stderr or e.stdout or '').strip()
+        return f'구글 일정 등록에 실패했습니다: {message or e.returncode}'
+    return f"구글 일정 등록을 완료했습니다: {payload['title']}"
+
+
 def execute_approved_proposal(proposal_id: int) -> str:
     proposal = next((item for item in list_proposals() if item.get('id') == proposal_id), None)
     if not proposal:
         return '해당 제안을 찾지 못했습니다.'
     if proposal.get('status') != 'approved':
         return '먼저 해당 제안을 승인해 주세요.'
+    payload = proposal.get('payload') or {}
+    result_text = 'executed'
+    if payload.get('kind') == 'calendar_register':
+        result_text = _execute_calendar_register(payload)
+        if result_text.startswith('구글 일정 등록에 실패했습니다'):
+            return result_text
     executions = _load_execs()
     executions.append({
         'proposal_id': proposal_id,
         'title': proposal.get('title'),
         'executed_at': datetime.now().isoformat(timespec='seconds'),
-        'result': 'executed',
+        'result': result_text,
     })
     _save_execs(executions)
     update_proposal_status(proposal_id, 'executed')
-    return f"제안 #{proposal_id} 실행을 기록했습니다."
+    return f"제안 #{proposal_id} 실행을 기록했습니다.\n{result_text}"

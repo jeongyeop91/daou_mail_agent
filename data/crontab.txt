@@ -1,3 +1,4 @@
+*/30 * * * * cd /Users/jylee91/.openclaw/workspace/daou-mail-agent2 && /opt/homebrew/bin/python3 scripts/poll_mail_workflow.py >> /Users/jylee91/.openclaw/workspace/daou-mail-agent2/data/briefing_cron.log 2>&1
 0 9 * * * cd /Users/jylee91/.openclaw/workspace/daou-mail-agent2 && /opt/homebrew/bin/python3 scripts/send_workday_briefing.py >> /Users/jylee91/.openclaw/workspace/daou-mail-agent2/data/briefing_cron.log 2>&1
 0 11 * * * cd /Users/jylee91/.openclaw/workspace/daou-mail-agent2 && /opt/homebrew/bin/python3 scripts/send_mail_briefing.py >> /Users/jylee91/.openclaw/workspace/daou-mail-agent2/data/briefing_cron.log 2>&1
 0 16 * * * cd /Users/jylee91/.openclaw/workspace/daou-mail-agent2 && /opt/homebrew/bin/python3 scripts/send_mail_briefing.py >> /Users/jylee91/.openclaw/workspace/daou-mail-agent2/data/briefing_cron.log 2>&1

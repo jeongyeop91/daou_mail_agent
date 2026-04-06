@@ -12,7 +12,7 @@ from mail_cache import purge_old_cache
 from reply_needed_briefing import build_reply_needed_briefing, mark_reply_briefed
 from schedule_recommendation import build_schedule_recommendation, mark_schedule_recommendation_sent
 
-POLL_MINUTES = 10
+POLL_MINUTES = 30
 RETENTION_DAYS = 180
 
 

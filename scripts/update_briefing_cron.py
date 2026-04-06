@@ -9,6 +9,7 @@ LOG_FILE = ROOT / 'data' / 'briefing_cron.log'
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 lines = [
+    f"*/30 * * * * cd {ROOT} && {PYTHON_BIN} scripts/poll_mail_workflow.py >> {LOG_FILE} 2>&1",
     f"0 9 * * * cd {ROOT} && {PYTHON_BIN} scripts/send_workday_briefing.py >> {LOG_FILE} 2>&1",
     f"0 11 * * * cd {ROOT} && {PYTHON_BIN} scripts/send_mail_briefing.py >> {LOG_FILE} 2>&1",
     f"0 16 * * * cd {ROOT} && {PYTHON_BIN} scripts/send_mail_briefing.py >> {LOG_FILE} 2>&1",

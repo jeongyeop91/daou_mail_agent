@@ -13,6 +13,7 @@
 - 일정/할 일/업무 브리핑 복원
 - 제안/승인/실행 기본 흐름 복원
 - 메일 봇 HTML 브리핑/버튼 UX 기본 복원
+- mail-agent 전용 persona 파일(`AGENTS.md`, `SOUL.md`, `STYLE.md`) 추가
 
 ## 실행 예시
 - `python3 telegram_mail_agent.py '마지막 메일이 뭐야?'`

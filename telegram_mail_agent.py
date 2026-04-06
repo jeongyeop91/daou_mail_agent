@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import sys
 
+from approval_loop import handle_proposal_action, list_pending_proposals, propose_action
 from command_router import run_command
 from core.session_store import save_last_results
 from intent_parser import parse_intent
+from proposal_executor import execute_approved_proposal
 from reply_needed_briefing import build_reply_needed_briefing
 from response_formatter import format_email_detail, format_email_list, format_summary
 
@@ -16,6 +18,14 @@ def handle_message(message: str) -> str:
     if text in {'오늘 업무 브리핑해줘', '오늘 전체 브리핑해줘'}:
         from workday_briefing import build_workday_briefing
         return build_workday_briefing()
+    if text in {'메일 제안 보여줘', '메일 대기 제안 보여줘'}:
+        return list_pending_proposals()
+    if text.startswith('메일 제안 ') and text.endswith(' 승인'):
+        return handle_proposal_action(int(text.removeprefix('메일 제안 ').removesuffix(' 승인').strip()), '승인')
+    if text.startswith('메일 제안 ') and text.endswith(' 거절'):
+        return handle_proposal_action(int(text.removeprefix('메일 제안 ').removesuffix(' 거절').strip()), '거절')
+    if text.startswith('메일 제안 ') and text.endswith(' 실행'):
+        return execute_approved_proposal(int(text.removeprefix('메일 제안 ').removesuffix(' 실행').strip()))
     if text in {'오늘 일정 뭐야?', '오늘 일정 보여줘'}:
         from calendar_briefing import build_calendar_briefing
         return build_calendar_briefing('today')
@@ -74,6 +84,9 @@ def handle_message(message: str) -> str:
     result = run_command(intent)
     if isinstance(result, str):
         return result
+
+    if intent.action == 'draft' and result:
+        return str(result)
 
     if intent.action in {'list', 'summary', 'detail'}:
         save_last_results(text, result)

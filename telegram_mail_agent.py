@@ -9,6 +9,7 @@ from intent_parser import parse_intent
 from proposal_executor import execute_approved_proposal
 from reply_needed_briefing import build_reply_needed_briefing
 from response_formatter import format_email_detail, format_email_list, format_summary
+from schedule_mail import build_schedule_mail_briefing, register_email_to_google_calendar
 
 
 def handle_message(message: str) -> str:
@@ -18,6 +19,8 @@ def handle_message(message: str) -> str:
     if text in {'오늘 업무 브리핑해줘', '오늘 전체 브리핑해줘'}:
         from workday_briefing import build_workday_briefing
         return build_workday_briefing()
+    if text in {'일정 메일 브리핑해줘', '스케줄 메일 브리핑해줘'}:
+        return build_schedule_mail_briefing()
     if text in {'메일 제안 보여줘', '메일 대기 제안 보여줘'}:
         return list_pending_proposals()
     if text.startswith('메일 제안 ') and text.endswith(' 승인'):
@@ -59,6 +62,13 @@ def handle_message(message: str) -> str:
         from task_actions import delete_task_by_index
         body = text.removeprefix('할 일 ').removesuffix(' 삭제해줘').strip().removesuffix('번')
         return delete_task_by_index(int(body))
+    if text.startswith('번 메일 구글일정 등록해줘'):
+        return '참조 번호 형식이 올바르지 않습니다.'
+    if text.endswith('번 메일 구글일정 등록해줘'):
+        import re
+        match = re.search(r'(\d+)번 메일 구글일정 등록해줘$', text)
+        if match:
+            return register_email_to_google_calendar(int(match.group(1)))
     if text.startswith('일정 등록해줘 '):
         from calendar_actions import create_calendar_event
         parts = [p.strip() for p in text.removeprefix('일정 등록해줘 ').split('|')]

@@ -7,7 +7,10 @@ from pathlib import Path
 
 from briefing_actions import BriefingAction, build_inline_keyboard, build_reply_keyboard
 from core.config import load_settings
+from core.models import EmailItem
+from core.session_store import get_email_by_index
 from mail_bot_sender import answer_mail_bot_callback, send_mail_bot_message
+from schedule_mail import extract_schedule_candidate
 from telegram_mail_agent import handle_message
 from workday_briefing import build_workday_briefing, get_workday_next_actions
 
@@ -41,23 +44,30 @@ def _fetch_updates(offset: int | None = None) -> list[dict]:
     return data.get('result', []) if data.get('ok') else []
 
 
+def _load_email(index: int) -> EmailItem | None:
+    saved = get_email_by_index(index)
+    if not saved:
+        return None
+    return EmailItem(**saved)
+
+
 def _detail_action_buttons(index: int = 1) -> dict:
-    return {
-        'inline_keyboard': [[
-            {'text': '✍️ 답장 초안', 'callback_data': f'cmd:{index}번 메일 답장 초안 써줘'},
-            {'text': '📄 원문 보기', 'callback_data': f'cmd:{index}번 메일 자세히 보여줘'},
-        ]]
-    }
-
-
-def _detail_suggestion_keyboard(index: int = 1) -> dict:
     actions = [
         BriefingAction('✍️ 답장 초안', f'{index}번 메일 답장 초안 써줘'),
         BriefingAction('📄 원문 보기', f'{index}번 메일 자세히 보여줘'),
-        BriefingAction('📮 업무 브리핑', '오늘 업무 브리핑해줘'),
-        BriefingAction('✅ 전체 할 일', '전체 할 일 보여줘'),
     ]
-    return build_reply_keyboard(actions)
+    email = _load_email(index)
+    if email:
+        schedule_candidate = extract_schedule_candidate(email)
+        if schedule_candidate:
+            if schedule_candidate.action == 'create':
+                actions.append(BriefingAction('📅 일정 제안', f'{index}번 메일 일정등록 제안해줘'))
+            elif schedule_candidate.action == 'update':
+                actions.append(BriefingAction('🛠 일정 수정 제안', f'{index}번 메일 일정수정 제안해줘'))
+            elif schedule_candidate.action == 'cancel':
+                actions.append(BriefingAction('🗑 일정 취소 제안', f'{index}번 메일 일정취소 제안해줘'))
+    actions.append(BriefingAction('📮 업무 브리핑', '오늘 업무 브리핑해줘'))
+    return build_inline_keyboard(actions, row_size=2)
 
 
 def _extract_detail_index(text: str) -> int | None:

@@ -5,6 +5,8 @@ __pycache__/
 data/*.json
 data/*.db
 data/*.log
+storage/data/*.db
+storage/data/*.log
 !data/.gitkeep
 
 # OpenClaw workspace-local files

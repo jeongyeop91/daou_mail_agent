@@ -14,7 +14,58 @@ def handle_message(message: str) -> str:
     if text in {'마지막 메일이 뭐야?', '가장 최근 메일이 뭐야?', '방금 온 메일 뭐야?'}:
         text = '최근 메일 1개 보여줘'
     if text in {'오늘 업무 브리핑해줘', '오늘 전체 브리핑해줘'}:
-        text = '오늘 중요 메일 브리핑해줘'
+        from workday_briefing import build_workday_briefing
+        return build_workday_briefing()
+    if text in {'오늘 일정 뭐야?', '오늘 일정 보여줘'}:
+        from calendar_briefing import build_calendar_briefing
+        return build_calendar_briefing('today')
+    if text in {'내일 일정 뭐야?', '내일 일정 보여줘'}:
+        from calendar_briefing import build_calendar_briefing
+        return build_calendar_briefing('tomorrow')
+    if text in {'이번 주 일정 뭐야?', '이번 주 일정 보여줘'}:
+        from calendar_briefing import build_calendar_briefing
+        return build_calendar_briefing('week')
+    if text in {'오늘 할 일 뭐야?', '오늘 할 일 보여줘'}:
+        from tasks_briefing import build_tasks_briefing
+        return build_tasks_briefing('today')
+    if text in {'전체 할 일 보여줘', '할 일 브리핑해줘'}:
+        from tasks_briefing import build_tasks_briefing
+        return build_tasks_briefing('all')
+    if text.startswith('할 일 추가해줘 '):
+        from task_actions import add_task
+        payload = text.removeprefix('할 일 추가해줘 ').strip()
+        parts = [p.strip() for p in payload.split('|')]
+        return add_task(parts[0], parts[1] if len(parts) > 1 else None, parts[2] if len(parts) > 2 else '')
+    if text.startswith('할 일 ') and text.endswith(' 완료해줘'):
+        from task_actions import complete_task_by_index
+        body = text.removeprefix('할 일 ').removesuffix(' 완료해줘').strip().removesuffix('번')
+        return complete_task_by_index(int(body))
+    if text.startswith('할 일 ') and ' 미뤄줘' in text:
+        from task_actions import postpone_task_by_index
+        body = text.removeprefix('할 일 ')
+        left, right = body.split(' 미뤄줘', 1)
+        return postpone_task_by_index(int(left.strip().removesuffix('번')), right.strip())
+    if text.startswith('할 일 ') and text.endswith(' 삭제해줘'):
+        from task_actions import delete_task_by_index
+        body = text.removeprefix('할 일 ').removesuffix(' 삭제해줘').strip().removesuffix('번')
+        return delete_task_by_index(int(body))
+    if text.startswith('일정 등록해줘 '):
+        from calendar_actions import create_calendar_event
+        parts = [p.strip() for p in text.removeprefix('일정 등록해줘 ').split('|')]
+        return create_calendar_event(parts[0], parts[1], parts[2], parts[3] if len(parts) > 3 else '')
+    if text.startswith('일정 수정해줘 '):
+        from calendar_actions import update_calendar_event, update_calendar_event_by_index
+        parts = [p.strip() for p in text.removeprefix('일정 수정해줘 ').split('|')]
+        first = parts[0]
+        if first.endswith('번'):
+            return update_calendar_event_by_index(int(first.removesuffix('번')), parts[1], parts[2], parts[3], parts[4] if len(parts) > 4 else None)
+        return update_calendar_event(first, parts[1], parts[2], parts[3], parts[4] if len(parts) > 4 else None)
+    if text.startswith('일정 취소해줘 ') or text.startswith('일정 삭제해줘 '):
+        from calendar_actions import delete_calendar_event, delete_calendar_event_by_index
+        payload = text.removeprefix('일정 취소해줘 ').removeprefix('일정 삭제해줘 ').strip()
+        if payload.endswith('번'):
+            return delete_calendar_event_by_index(int(payload.removesuffix('번')))
+        return delete_calendar_event(payload)
 
     intent = parse_intent(text)
     if intent.action == 'reply_briefing':

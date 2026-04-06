@@ -12,6 +12,7 @@ from core.models import EmailItem
 REPLY_HINTS = ('회신', '확인', '검토', '승인')
 
 DB_PATH = Path(__file__).resolve().parent / 'data' / 'mail_cache.db'
+RETENTION_DAYS = 180
 
 
 def _connect() -> sqlite3.Connection:
@@ -244,3 +245,16 @@ def get_cached_important_emails(limit: int = 10, *, unnotified_only: bool = Fals
             (limit,),
         ).fetchall()
     return [_row_to_email(row) for row in rows]
+
+
+def purge_old_cache(retention_days: int = RETENTION_DAYS) -> int:
+    init_mail_cache()
+    with _connect() as conn:
+        result = conn.execute(
+            '''
+            DELETE FROM messages
+            WHERE COALESCE(received_at, first_seen_at, last_seen_at) < datetime('now', ?)
+            ''',
+            (f'-{retention_days} days',),
+        )
+        return result.rowcount

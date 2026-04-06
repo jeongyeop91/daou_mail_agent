@@ -8,13 +8,16 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from agents.collector import fetch_recent_emails
 from important_mail_briefing import build_important_mail_briefing
 from mail_bot_sender import send_mail_bot_message
-from mail_cache import mark_notified
+from mail_cache import mark_notified, purge_old_cache
 from reply_needed_briefing import build_reply_needed_briefing
 
 POLL_MINUTES = 10
+RETENTION_DAYS = 180
 
 
 def main() -> None:
+    purged = purge_old_cache(RETENTION_DAYS)
+    print(f'PURGED={purged}')
     fetched = fetch_recent_emails(limit=10)
     print(f'FETCHED={len(fetched)}')
 
@@ -41,6 +44,7 @@ def main() -> None:
         print(reply_text)
 
     print(f'INTERVAL_MINUTES={POLL_MINUTES}')
+    print(f'RETENTION_DAYS={RETENTION_DAYS}')
 
 
 if __name__ == '__main__':

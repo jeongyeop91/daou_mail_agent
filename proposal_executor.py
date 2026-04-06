@@ -23,9 +23,17 @@ def _save_execs(items: list[dict]) -> None:
     EXEC_PATH.write_text(json.dumps(items, ensure_ascii=False, indent=2))
 
 
-def _execute_calendar_register(payload: dict) -> str:
+def _run_calendar_cmd(cmd: list[str], failure_prefix: str) -> str | None:
     import subprocess
+    try:
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return None
+    except subprocess.CalledProcessError as e:
+        message = (e.stderr or e.stdout or '').strip()
+        return f'{failure_prefix}: {message or e.returncode}'
 
+
+def _execute_calendar_register(payload: dict) -> str:
     cmd = [
         'gog', 'calendar', 'create', 'primary',
         '--summary', payload['title'],
@@ -36,12 +44,35 @@ def _execute_calendar_register(payload: dict) -> str:
         cmd.extend(['--description', payload['description']])
     if payload.get('location'):
         cmd.extend(['--location', payload['location']])
-    try:
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
-    except subprocess.CalledProcessError as e:
-        message = (e.stderr or e.stdout or '').strip()
-        return f'구글 일정 등록에 실패했습니다: {message or e.returncode}'
+    error = _run_calendar_cmd(cmd, '구글 일정 등록에 실패했습니다')
+    if error:
+        return error
     return f"구글 일정 등록을 완료했습니다: {payload['title']}"
+
+
+def _execute_calendar_update(payload: dict) -> str:
+    cmd = [
+        'gog', 'calendar', 'update', 'primary', payload['event_id'],
+        '--summary', payload['title'],
+        '--from', payload['start_at'],
+        '--to', payload['end_at'],
+    ]
+    if payload.get('description'):
+        cmd.extend(['--description', payload['description']])
+    if payload.get('location'):
+        cmd.extend(['--location', payload['location']])
+    error = _run_calendar_cmd(cmd, '구글 일정 수정에 실패했습니다')
+    if error:
+        return error
+    return f"구글 일정 수정을 완료했습니다: {payload['title']}"
+
+
+def _execute_calendar_cancel(payload: dict) -> str:
+    cmd = ['gog', 'calendar', 'delete', 'primary', payload['event_id']]
+    error = _run_calendar_cmd(cmd, '구글 일정 취소에 실패했습니다')
+    if error:
+        return error
+    return f"구글 일정 취소를 완료했습니다: {payload['title']}"
 
 
 def execute_approved_proposal(proposal_id: int) -> str:
@@ -55,6 +86,14 @@ def execute_approved_proposal(proposal_id: int) -> str:
     if payload.get('kind') == 'calendar_register':
         result_text = _execute_calendar_register(payload)
         if result_text.startswith('구글 일정 등록에 실패했습니다'):
+            return result_text
+    elif payload.get('kind') == 'calendar_update':
+        result_text = _execute_calendar_update(payload)
+        if result_text.startswith('구글 일정 수정에 실패했습니다'):
+            return result_text
+    elif payload.get('kind') == 'calendar_cancel':
+        result_text = _execute_calendar_cancel(payload)
+        if result_text.startswith('구글 일정 취소에 실패했습니다'):
             return result_text
     executions = _load_execs()
     executions.append({

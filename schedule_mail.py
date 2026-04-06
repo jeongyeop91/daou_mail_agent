@@ -24,6 +24,7 @@ class ScheduleCandidate:
     description: str
     location: str
     source_email: EmailItem
+    action: str = 'create'
 
 
 def _extract_datetime(text: str) -> datetime | None:
@@ -77,6 +78,15 @@ def _extract_location(text: str) -> str:
     return ''
 
 
+def _detect_schedule_action(email: EmailItem) -> str:
+    text = f'{email.subject} {email.body}'.lower()
+    if any(token in text for token in ['취소', '삭제', 'cancel']):
+        return 'cancel'
+    if any(token in text for token in ['변경', '수정', '연기', 'reschedule', 'update']):
+        return 'update'
+    return 'create'
+
+
 def extract_schedule_candidate(email: EmailItem) -> ScheduleCandidate | None:
     text = f'{email.subject}\n{email.body}'
     if not any(token in text for token in ['일정', '미팅', '회의', '면담', '방문']):
@@ -90,7 +100,7 @@ def extract_schedule_candidate(email: EmailItem) -> ScheduleCandidate | None:
     if start_at.tzinfo is None:
         start_at = start_at.replace(tzinfo=KST)
     end_at = start_at + timedelta(minutes=DEFAULT_DURATION_MINUTES)
-    return ScheduleCandidate(title=title, start_at=start_at, end_at=end_at, description=description, location=location, source_email=email)
+    return ScheduleCandidate(title=title, start_at=start_at, end_at=end_at, description=description, location=location, source_email=email, action=_detect_schedule_action(email))
 
 
 def list_schedule_candidate_emails(limit: int = 10) -> list[EmailItem]:
@@ -109,21 +119,27 @@ def build_schedule_mail_briefing(limit: int = 10) -> str:
         candidate = extract_schedule_candidate(email)
         if not candidate:
             continue
-        lines.append(f'{idx}. {candidate.title}')
+        action_label = {'create': '등록', 'update': '수정', 'cancel': '취소'}.get(candidate.action, '등록')
+        lines.append(f'{idx}. [{action_label}] {candidate.title}')
         lines.append(f'일정: {candidate.start_at.strftime("%Y-%m-%d %H:%M")} ~ {candidate.end_at.strftime("%H:%M")}')
         if candidate.location:
             lines.append(f'장소: {candidate.location}')
         lines.append(f'보낸 사람: {email.sender}')
-        lines.append(f'바로 하기: {idx}번 메일 일정등록 제안해줘')
+        if candidate.action == 'update':
+            lines.append(f'바로 하기: {idx}번 메일 일정수정 제안해줘')
+        elif candidate.action == 'cancel':
+            lines.append(f'바로 하기: {idx}번 메일 일정취소 제안해줘')
+        else:
+            lines.append(f'바로 하기: {idx}번 메일 일정등록 제안해줘')
         lines.append('')
     return '\n'.join(lines[:-1])
 
 
-def _find_duplicate_event(candidate: ScheduleCandidate) -> bool:
+def _find_matching_event(candidate: ScheduleCandidate) -> dict | None:
     cmd = [
         'gog', 'calendar', 'events', CALENDAR_ID,
-        '--from', candidate.start_at.isoformat(),
-        '--to', candidate.end_at.isoformat(),
+        '--from', (candidate.start_at - timedelta(days=1)).isoformat(),
+        '--to', (candidate.end_at + timedelta(days=1)).isoformat(),
         '--json',
     ]
     try:
@@ -131,13 +147,17 @@ def _find_duplicate_event(candidate: ScheduleCandidate) -> bool:
         data = json.loads((result.stdout or '').strip() or '{}')
         events = data.get('events', []) if isinstance(data, dict) else []
     except Exception:
-        return False
+        return None
     normalized = candidate.title.strip().lower()
     for event in events:
         summary = str(event.get('summary', '')).strip().lower()
-        if summary == normalized:
-            return True
-    return False
+        if normalized and (summary == normalized or normalized in summary or summary in normalized):
+            return event
+    return None
+
+
+def _find_duplicate_event(candidate: ScheduleCandidate) -> bool:
+    return _find_matching_event(candidate) is not None
 
 
 def propose_email_to_google_calendar(index: int) -> str:
@@ -148,6 +168,8 @@ def propose_email_to_google_calendar(index: int) -> str:
     candidate = extract_schedule_candidate(email)
     if not candidate:
         return '해당 메일에서 일정 정보를 추출하지 못했습니다.'
+    if candidate.action != 'create':
+        return '신규 일정 등록 메일이 아닙니다. 수정/취소 전용 제안을 사용해 주세요.'
     if _find_duplicate_event(candidate):
         return '같은 제목과 시간대의 일정이 이미 구글 캘린더에 있어 등록을 보류했습니다.'
     payload = {
@@ -159,6 +181,48 @@ def propose_email_to_google_calendar(index: int) -> str:
         'location': candidate.location,
     }
     return propose_action(f'구글 일정 등록: {candidate.title}', payload)
+
+
+def propose_email_calendar_update(index: int) -> str:
+    saved = get_email_by_index(index)
+    if not saved:
+        return '참조할 일정 메일을 찾지 못했습니다. 먼저 일정 메일 브리핑을 조회해 주세요.'
+    email = EmailItem(**saved)
+    candidate = extract_schedule_candidate(email)
+    if not candidate:
+        return '해당 메일에서 일정 정보를 추출하지 못했습니다.'
+    event = _find_matching_event(candidate)
+    if not event:
+        return '수정할 기존 구글 일정을 찾지 못했습니다.'
+    payload = {
+        'kind': 'calendar_update',
+        'event_id': event.get('id'),
+        'title': candidate.title,
+        'start_at': candidate.start_at.isoformat(),
+        'end_at': candidate.end_at.isoformat(),
+        'description': candidate.description,
+        'location': candidate.location,
+    }
+    return propose_action(f'구글 일정 수정: {candidate.title}', payload)
+
+
+def propose_email_calendar_cancel(index: int) -> str:
+    saved = get_email_by_index(index)
+    if not saved:
+        return '참조할 일정 메일을 찾지 못했습니다. 먼저 일정 메일 브리핑을 조회해 주세요.'
+    email = EmailItem(**saved)
+    candidate = extract_schedule_candidate(email)
+    if not candidate:
+        return '해당 메일에서 일정 정보를 추출하지 못했습니다.'
+    event = _find_matching_event(candidate)
+    if not event:
+        return '취소할 기존 구글 일정을 찾지 못했습니다.'
+    payload = {
+        'kind': 'calendar_cancel',
+        'event_id': event.get('id'),
+        'title': candidate.title,
+    }
+    return propose_action(f'구글 일정 취소: {candidate.title}', payload)
 
 
 def register_email_to_google_calendar(index: int) -> str:

@@ -9,7 +9,7 @@ from intent_parser import parse_intent
 from proposal_executor import execute_approved_proposal
 from reply_needed_briefing import build_reply_needed_briefing
 from response_formatter import format_email_detail, format_email_list, format_summary
-from schedule_mail import build_schedule_mail_briefing, propose_email_to_google_calendar, register_email_to_google_calendar
+from schedule_mail import build_schedule_mail_briefing, propose_email_calendar_cancel, propose_email_calendar_update, propose_email_to_google_calendar, register_email_to_google_calendar
 
 
 def handle_message(message: str) -> str:
@@ -69,6 +69,16 @@ def handle_message(message: str) -> str:
         match = re.search(r'(\d+)번 메일 일정등록 제안해줘$', text)
         if match:
             return propose_email_to_google_calendar(int(match.group(1)))
+    if text.endswith('번 메일 일정수정 제안해줘'):
+        import re
+        match = re.search(r'(\d+)번 메일 일정수정 제안해줘$', text)
+        if match:
+            return propose_email_calendar_update(int(match.group(1)))
+    if text.endswith('번 메일 일정취소 제안해줘'):
+        import re
+        match = re.search(r'(\d+)번 메일 일정취소 제안해줘$', text)
+        if match:
+            return propose_email_calendar_cancel(int(match.group(1)))
     if text.endswith('번 메일 구글일정 등록해줘'):
         import re
         match = re.search(r'(\d+)번 메일 구글일정 등록해줘$', text)

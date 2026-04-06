@@ -10,6 +10,7 @@ from important_mail_briefing import build_important_mail_briefing
 from mail_bot_sender import send_mail_bot_message
 from mail_cache import mark_notified, purge_old_cache
 from reply_needed_briefing import build_reply_needed_briefing
+from schedule_recommendation import build_and_mark_schedule_recommendation
 
 POLL_MINUTES = 10
 RETENTION_DAYS = 180
@@ -42,6 +43,15 @@ def main() -> None:
     else:
         print('REPLY_BRIEFED=0')
         print(reply_text)
+
+    schedule_text = build_and_mark_schedule_recommendation(limit=3)
+    if schedule_text != '새롭게 추천할 일정 메일이 없습니다.':
+        schedule_result = send_mail_bot_message(schedule_text)
+        print(schedule_result)
+        print('SCHEDULE_RECOMMENDED=1')
+    else:
+        print('SCHEDULE_RECOMMENDED=0')
+        print(schedule_text)
 
     print(f'INTERVAL_MINUTES={POLL_MINUTES}')
     print(f'RETENTION_DAYS={RETENTION_DAYS}')

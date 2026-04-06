@@ -41,6 +41,7 @@ def init_mail_cache() -> None:
                 is_important INTEGER NOT NULL DEFAULT 0,
                 notified_at TEXT,
                 briefed_at TEXT,
+                schedule_proposed_at TEXT,
                 source_kind TEXT NOT NULL DEFAULT 'unknown',
                 first_seen_at TEXT NOT NULL,
                 last_seen_at TEXT NOT NULL
@@ -62,6 +63,8 @@ def init_mail_cache() -> None:
             conn.execute('ALTER TABLE messages ADD COLUMN notified_at TEXT')
         if 'briefed_at' not in existing_columns:
             conn.execute('ALTER TABLE messages ADD COLUMN briefed_at TEXT')
+        if 'schedule_proposed_at' not in existing_columns:
+            conn.execute('ALTER TABLE messages ADD COLUMN schedule_proposed_at TEXT')
 
 
 def _now_iso() -> str:
@@ -229,6 +232,26 @@ def mark_briefed(emails: list[EmailItem]) -> int:
 
 def mark_notified(emails: list[EmailItem]) -> int:
     return _mark_timestamp(emails, 'notified_at')
+
+
+def get_cached_schedule_candidate_emails(limit: int = 10, *, unproposed_only: bool = False) -> list[EmailItem]:
+    init_mail_cache()
+    with _connect() as conn:
+        rows = conn.execute(
+            f'''
+            SELECT sender, subject, raw_date, received_at, body_preview, has_attachments, classification, needs_reply, is_important, source_kind, last_seen_at
+            FROM messages
+            WHERE classification IN ('업무', '기타', '공지') {'AND schedule_proposed_at IS NULL' if unproposed_only else ''}
+            ORDER BY COALESCE(received_at, last_seen_at) DESC, id DESC
+            LIMIT ?
+            ''',
+            (limit,),
+        ).fetchall()
+    return [_row_to_email(row) for row in rows]
+
+
+def mark_schedule_proposed(emails: list[EmailItem]) -> int:
+    return _mark_timestamp(emails, 'schedule_proposed_at')
 
 
 def get_cached_important_emails(limit: int = 10, *, unnotified_only: bool = False) -> list[EmailItem]:

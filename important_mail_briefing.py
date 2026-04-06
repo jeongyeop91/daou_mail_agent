@@ -10,9 +10,17 @@ from mail_cache import get_cached_important_emails, mark_notified
 def build_important_mail_briefing(limit: int = 5, *, unnotified_only: bool = True) -> tuple[str, list, dict | None]:
     emails = get_cached_important_emails(limit, unnotified_only=unnotified_only)
     if not emails:
-        return '새롭게 알릴 중요 메일이 없습니다.', [], None
+        return '현재 새롭게 알릴 중요 메일은 없습니다.', [], None
 
-    lines = ['📮 중요 메일 알림', '━━━━━━━━━━', f'중요 메일 = {len(emails)}건', '']
+    lines = [
+        '📮 중요 메일 알림',
+        '━━━━━━━━━━',
+        '현재 상태',
+        f'- 새 중요 메일: {len(emails)}건',
+        '- 우선 확인이 필요한 메일만 추렸습니다.',
+        '',
+        '상세 목록',
+    ]
     actions: list[BriefingAction] = []
     for idx, email in enumerate(emails, start=1):
         lines.append(f'{idx}. [{classify_email(email)}/{categorize_email(email)}] {email.subject}')

@@ -10,8 +10,16 @@ from mail_cache import get_cached_reply_needed_emails, mark_briefed
 def build_reply_needed_briefing(limit: int = 10) -> tuple[str, list, dict | None]:
     filtered = get_cached_reply_needed_emails(limit, unbriefed_only=True)
     if not filtered:
-        return '새롭게 브리핑할 답장 필요 메일이 없습니다.', [], None
-    lines = ['📮 답장 필요한 메일 브리핑', '━━━━━━━━━━', f'답장 필요 = {len(filtered)}건', '']
+        return '현재 새롭게 브리핑할 답장 필요 메일은 없습니다.', [], None
+    lines = [
+        '📮 답장 필요한 메일 브리핑',
+        '━━━━━━━━━━',
+        '현재 상태',
+        f'- 새 답장 필요 메일: {len(filtered)}건',
+        '- 회신 또는 확인이 필요한 메일만 정리했습니다.',
+        '',
+        '상세 목록',
+    ]
     selected = filtered[:5]
     actions: list[BriefingAction] = []
     for idx, email in enumerate(selected, start=1):

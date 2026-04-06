@@ -15,9 +15,17 @@ def build_schedule_recommendation(limit: int = 3) -> tuple[str, list, dict | Non
         if len(candidates) >= limit:
             break
     if not candidates:
-        return '새롭게 추천할 일정 메일이 없습니다.', [], None
+        return '현재 새롭게 추천할 일정 메일은 없습니다.', [], None
 
-    lines = ['📅 일정 등록 추천', '━━━━━━━━━━', f'추천 일정 = {len(candidates)}건', '']
+    lines = [
+        '📅 일정 등록 추천',
+        '━━━━━━━━━━',
+        '현재 상태',
+        f'- 새 일정 추천: {len(candidates)}건',
+        '- 일정 등록이 필요한 후보 메일만 추렸습니다.',
+        '',
+        '상세 목록',
+    ]
     emails = []
     actions: list[BriefingAction] = []
     for idx, (email, candidate) in enumerate(candidates, start=1):

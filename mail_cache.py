@@ -228,3 +228,19 @@ def mark_briefed(emails: list[EmailItem]) -> int:
 
 def mark_notified(emails: list[EmailItem]) -> int:
     return _mark_timestamp(emails, 'notified_at')
+
+
+def get_cached_important_emails(limit: int = 10, *, unnotified_only: bool = False) -> list[EmailItem]:
+    init_mail_cache()
+    with _connect() as conn:
+        rows = conn.execute(
+            f'''
+            SELECT sender, subject, raw_date, received_at, body_preview, has_attachments, classification, needs_reply, is_important, source_kind, last_seen_at
+            FROM messages
+            WHERE is_important = 1 {'AND notified_at IS NULL' if unnotified_only else ''}
+            ORDER BY COALESCE(received_at, last_seen_at) DESC, id DESC
+            LIMIT ?
+            ''',
+            (limit,),
+        ).fetchall()
+    return [_row_to_email(row) for row in rows]

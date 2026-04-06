@@ -69,7 +69,7 @@ def _extract_detail_index(text: str) -> int | None:
     return 1
 
 
-def _build_workday_html() -> tuple[str, dict, dict]:
+def _build_workday_html() -> tuple[str, dict]:
     text = build_workday_briefing()
     actions = get_workday_next_actions(
         has_important_mail='🔴 중요 메일 0건' not in text,
@@ -87,8 +87,7 @@ def _build_workday_html() -> tuple[str, dict, dict]:
     html = html.replace('━━━━━━━━━━', '━━━━━━━━━━')
     html = html.replace('\n', '\n')
     inline = build_inline_keyboard(actions)
-    reply = build_reply_keyboard(actions)
-    return html, inline, reply
+    return html, inline
 
 
 def process_mail_bot_updates() -> str:
@@ -110,7 +109,6 @@ def process_mail_bot_updates() -> str:
                 idx = _extract_detail_index(command)
                 if idx is not None:
                     send_mail_bot_message(reply, chat_id=chat_id, reply_markup=_detail_action_buttons(idx))
-                    send_mail_bot_message('추천 작업 버튼을 입력창 위에 띄워드렸습니다.', chat_id=chat_id, reply_markup=_detail_suggestion_keyboard(idx))
                 else:
                     send_mail_bot_message(reply, chat_id=chat_id)
                 answer_mail_bot_callback(callback.get('id'), '실행했습니다')
@@ -123,16 +121,14 @@ def process_mail_bot_updates() -> str:
         chat_id = str((msg.get('chat') or {}).get('id') or '')
         if text and chat_id:
             if text in {'오늘 업무 브리핑해줘', '업무 브리핑 보내줘'}:
-                html, buttons, reply_keyboard = _build_workday_html()
+                html, buttons = _build_workday_html()
                 send_mail_bot_message(html, chat_id=chat_id, parse_mode='HTML', reply_markup=buttons)
-                send_mail_bot_message('다음 액션을 버튼으로 붙여뒀습니다. 누르면 바로 실행됩니다.', chat_id=chat_id, reply_markup=reply_keyboard)
                 handled += 1
             else:
                 reply = handle_message(text)
                 idx = _extract_detail_index(text)
                 if idx is not None:
                     send_mail_bot_message(reply, chat_id=chat_id, reply_markup=_detail_action_buttons(idx))
-                    send_mail_bot_message('추천 작업 버튼을 입력창 위에 띄워드렸습니다.', chat_id=chat_id, reply_markup=_detail_suggestion_keyboard(idx))
                 else:
                     send_mail_bot_message(reply, chat_id=chat_id)
                 handled += 1

@@ -1,0 +1,20 @@
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from mail_cache import get_cached_recent, init_mail_cache
+
+
+def main() -> None:
+    init_mail_cache()
+    rows = get_cached_recent(10)
+    print(f'CACHED={len(rows)}')
+    for idx, row in enumerate(rows, start=1):
+        print(f"{idx}. {row['subject']} | {row['sender']} | {row['received_at'] or row['raw_date']} | {row['source_kind']}")
+
+
+if __name__ == '__main__':
+    main()

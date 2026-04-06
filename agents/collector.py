@@ -9,6 +9,7 @@ from typing import Iterable
 
 from core.config import load_settings
 from core.models import EmailItem
+from mail_cache import cache_emails
 
 
 def _decode(value: str | bytes | None) -> str:
@@ -105,20 +106,24 @@ def _fetch_emails(search_criterion: str = 'UNSEEN', limit: int = 10) -> list[Ema
 
                 msg = email.message_from_bytes(raw)
                 body, has_attachments = _extract_body(msg)
+                raw_date = _decode(msg.get('Date'))
                 items.append(EmailItem(
                     sender=_decode(msg.get('From')),
                     subject=_decode(msg.get('Subject')),
-                    date=_decode(msg.get('Date')),
+                    date=raw_date,
                     body=body,
                     has_attachments=has_attachments,
+                    parsed_date=_parse_email_date(raw_date),
                 ))
             except imaplib.IMAP4.abort:
                 continue
             except Exception:
                 continue
 
-        items.sort(key=lambda item: _parse_email_date(item.date), reverse=True)
-        return items[:limit]
+        items.sort(key=lambda item: item.parsed_date or _parse_email_date(item.date), reverse=True)
+        items = items[:limit]
+        cache_emails(items, source_kind=search_criterion)
+        return items
     finally:
         try:
             mail.logout()

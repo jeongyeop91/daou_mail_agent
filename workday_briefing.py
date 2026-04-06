@@ -2,20 +2,42 @@ from __future__ import annotations
 
 from agents.collector import fetch_unread_emails
 from agents.classifier import classify_email
+from briefing_actions import BriefingAction
 from calendar_briefing import fetch_calendar_events
 from category_rules import categorize_email
 from tasks_briefing import _fetch_tasks
 
 
 DEFAULT_NEXT_ACTIONS = [
-    '1번 메일 자세히 보여줘',
-    '오늘 일정 뭐야?',
-    '전체 할 일 보여줘',
+    BriefingAction('📄 메일 상세', '1번 메일 자세히 보여줘'),
+    BriefingAction('📅 오늘 일정', '오늘 일정 뭐야?'),
+    BriefingAction('✅ 전체 할 일', '전체 할 일 보여줘'),
 ]
 
 
-def get_workday_next_actions() -> list[str]:
-    return DEFAULT_NEXT_ACTIONS.copy()
+def get_workday_next_actions(has_important_mail: bool = True, has_events: bool = True, has_tasks: bool = True) -> list[BriefingAction]:
+    actions: list[BriefingAction] = []
+    if has_important_mail:
+        actions.append(BriefingAction('📄 우선 메일 보기', '1번 메일 자세히 보여줘'))
+    if has_events:
+        actions.append(BriefingAction('📅 오늘 일정 확인', '오늘 일정 뭐야?'))
+    if has_tasks:
+        actions.append(BriefingAction('✅ 할 일 확인', '전체 할 일 보여줘'))
+
+    fallback_pool = [
+        BriefingAction('📮 최근 메일', '최근 메일 5개 보여줘'),
+        BriefingAction('📝 답장 필요 메일', '답장 필요한 메일 브리핑해줘'),
+        BriefingAction('📅 오늘 일정 확인', '오늘 일정 뭐야?'),
+        BriefingAction('✅ 전체 할 일', '전체 할 일 보여줘'),
+    ]
+    seen = {action.command for action in actions}
+    for action in fallback_pool:
+        if len(actions) >= 3:
+            break
+        if action.command not in seen:
+            actions.append(action)
+            seen.add(action.command)
+    return actions or DEFAULT_NEXT_ACTIONS.copy()
 
 
 def build_workday_briefing() -> str:
@@ -23,6 +45,12 @@ def build_workday_briefing() -> str:
     important = [e for e in emails if classify_email(e) == '중요'][:3]
     events = fetch_calendar_events('today')
     tasks = [t for t in _fetch_tasks('today') if t.get('status') != 'completed']
+
+    actions = get_workday_next_actions(
+        has_important_mail=bool(important),
+        has_events=bool(events),
+        has_tasks=bool(tasks),
+    )
 
     lines = [
         '📮 오늘 업무 브리핑',
@@ -67,12 +95,7 @@ def build_workday_briefing() -> str:
     else:
         lines.append('등록된 할 일이 없습니다.')
 
-    lines.extend([
-        '',
-        '━━━━━━━━━━',
-        '권장 다음 액션',
-        '1) 1번 메일 자세히 보여줘',
-        '2) 오늘 일정 뭐야?',
-        '3) 전체 할 일 보여줘',
-    ])
+    lines.extend(['', '━━━━━━━━━━', '권장 다음 액션'])
+    for idx, action in enumerate(actions, start=1):
+        lines.append(f'{idx}) {action.command}')
     return '\n'.join(lines)

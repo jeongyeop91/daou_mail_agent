@@ -5,10 +5,11 @@ import re
 import urllib.request
 from pathlib import Path
 
+from briefing_actions import BriefingAction, build_inline_keyboard, build_reply_keyboard
 from core.config import load_settings
 from mail_bot_sender import answer_mail_bot_callback, send_mail_bot_message
 from telegram_mail_agent import handle_message
-from workday_briefing import get_workday_next_actions
+from workday_briefing import build_workday_briefing, get_workday_next_actions
 
 STATE_PATH = Path(__file__).resolve().parent / 'data' / 'mail_bot_state.json'
 
@@ -50,15 +51,13 @@ def _detail_action_buttons(index: int = 1) -> dict:
 
 
 def _detail_suggestion_keyboard(index: int = 1) -> dict:
-    return {
-        'keyboard': [
-            [{'text': f'{index}번 메일 답장 초안 써줘'}, {'text': f'{index}번 메일 자세히 보여줘'}],
-            [{'text': '오늘 업무 브리핑해줘'}, {'text': '전체 할 일 보여줘'}],
-        ],
-        'resize_keyboard': True,
-        'one_time_keyboard': False,
-        'input_field_placeholder': '추천 작업을 눌러 바로 이어서 요청할 수 있습니다',
-    }
+    actions = [
+        BriefingAction('✍️ 답장 초안', f'{index}번 메일 답장 초안 써줘'),
+        BriefingAction('📄 원문 보기', f'{index}번 메일 자세히 보여줘'),
+        BriefingAction('📮 업무 브리핑', '오늘 업무 브리핑해줘'),
+        BriefingAction('✅ 전체 할 일', '전체 할 일 보여줘'),
+    ]
+    return build_reply_keyboard(actions)
 
 
 def _extract_detail_index(text: str) -> int | None:
@@ -70,47 +69,26 @@ def _extract_detail_index(text: str) -> int | None:
     return 1
 
 
-def _build_workday_html() -> tuple[str, dict]:
-    actions = get_workday_next_actions()
-    text = (
-        '<b>📮 오늘 업무 브리핑</b>\n\n'
-        '━━━━━━━━━━\n'
-        '<b>한눈 요약</b>\n'
-        '🔴 중요 메일 <b>0건</b>\n'
-        '🔵 오늘 일정 <b>2건</b>\n'
-        '🟡 오늘 할 일 <b>2건</b>\n\n'
-        '<b>현재 상태</b>\n'
-        '오늘 확인이 필요한 메일, 일정, 할 일을 한 번에 정리했습니다.\n'
-        '우선순위가 높은 항목부터 순서대로 확인하실 수 있도록 구성했습니다.\n\n'
-        '━━━━━━━━━━\n'
-        '<b>오늘 일정</b>\n'
-        '1. 주간 회의\n'
-        '시간: 10:00\n'
-        '2. 고객 미팅\n'
-        '시간: 14:00\n\n'
-        '<b>오늘 할 일</b>\n'
-        '1. 제안서 수정본 검토\n'
-        '기한: 오늘\n'
-        '2. 회신 초안 작성\n'
-        '기한: 오늘\n\n'
-        '━━━━━━━━━━\n'
-        '<b>권장 다음 액션</b>\n'
-        f'1) <code>{actions[0]}</code>\n'
-        f'2) <code>{actions[1]}</code>\n'
-        f'3) <code>{actions[2]}</code>'
+def _build_workday_html() -> tuple[str, dict, dict]:
+    text = build_workday_briefing()
+    actions = get_workday_next_actions(
+        has_important_mail='🔴 중요 메일 0건' not in text,
+        has_events='🔵 오늘 일정 0건' not in text,
+        has_tasks='🟡 오늘 할 일 0건' not in text,
     )
-    buttons = {
-        'inline_keyboard': [
-            [
-                {'text': '1️⃣ 메일 상세', 'callback_data': f'cmd:{actions[0]}'},
-                {'text': '2️⃣ 오늘 일정', 'callback_data': f'cmd:{actions[1]}'},
-            ],
-            [
-                {'text': '3️⃣ 전체 할 일', 'callback_data': f'cmd:{actions[2]}'},
-            ],
-        ]
-    }
-    return text, buttons
+    html = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\n', '\n')
+    html = html.replace('📮 오늘 업무 브리핑', '<b>📮 오늘 업무 브리핑</b>')
+    html = html.replace('한눈 요약', '<b>한눈 요약</b>')
+    html = html.replace('현재 상태', '<b>현재 상태</b>')
+    html = html.replace('우선 확인 메일', '<b>우선 확인 메일</b>')
+    html = html.replace('오늘 일정', '<b>오늘 일정</b>')
+    html = html.replace('오늘 할 일', '<b>오늘 할 일</b>')
+    html = html.replace('권장 다음 액션', '<b>권장 다음 액션</b>')
+    html = html.replace('━━━━━━━━━━', '━━━━━━━━━━')
+    html = html.replace('\n', '\n')
+    inline = build_inline_keyboard(actions)
+    reply = build_reply_keyboard(actions)
+    return html, inline, reply
 
 
 def process_mail_bot_updates() -> str:
@@ -145,8 +123,9 @@ def process_mail_bot_updates() -> str:
         chat_id = str((msg.get('chat') or {}).get('id') or '')
         if text and chat_id:
             if text in {'오늘 업무 브리핑해줘', '업무 브리핑 보내줘'}:
-                html, buttons = _build_workday_html()
+                html, buttons, reply_keyboard = _build_workday_html()
                 send_mail_bot_message(html, chat_id=chat_id, parse_mode='HTML', reply_markup=buttons)
+                send_mail_bot_message('다음 액션을 버튼으로 붙여뒀습니다. 누르면 바로 실행됩니다.', chat_id=chat_id, reply_markup=reply_keyboard)
                 handled += 1
             else:
                 reply = handle_message(text)

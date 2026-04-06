@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import email
 import imaplib
+from datetime import datetime, timezone
 from email.header import decode_header, make_header
+from email.utils import parsedate_to_datetime
 from typing import Iterable
 
 from core.config import load_settings
@@ -44,32 +46,92 @@ def _extract_body(msg) -> tuple[str, bool]:
     return body.strip(), has_attachments
 
 
-def fetch_unread_emails(limit: int = 10) -> list[EmailItem]:
+def _extract_rfc822_bytes(msg_data) -> bytes | None:
+    if not msg_data:
+        return None
+    for part in msg_data:
+        if isinstance(part, tuple) and len(part) >= 2 and isinstance(part[1], (bytes, bytearray)):
+            return bytes(part[1])
+    return None
+
+
+def _parse_email_date(value: str | None) -> datetime:
+    if not value:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    try:
+        parsed = parsedate_to_datetime(value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except Exception:
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _fetch_emails(search_criterion: str = 'UNSEEN', limit: int = 10) -> list[EmailItem]:
     settings = load_settings()
     if not settings.imap_host or not settings.email_address or not settings.email_password:
         return []
+
     mail = imaplib.IMAP4_SSL(settings.imap_host, settings.imap_port)
-    mail.login(settings.email_address, settings.email_password)
-    mail.select('INBOX')
-    status, data = mail.search(None, 'UNSEEN')
-    ids = data[0].split()[-limit:]
-    items: list[EmailItem] = []
-    for msg_id in reversed(ids):
-        status, msg_data = mail.fetch(msg_id, '(RFC822)')
-        if status != 'OK':
-            continue
-        raw = msg_data[0][1]
-        msg = email.message_from_bytes(raw)
-        body, has_attachments = _extract_body(msg)
-        items.append(EmailItem(
-            sender=_decode(msg.get('From')),
-            subject=_decode(msg.get('Subject')),
-            date=_decode(msg.get('Date')),
-            body=body,
-            has_attachments=has_attachments,
-        ))
-    mail.logout()
-    return items
+    try:
+        mail.login(settings.email_address, settings.email_password)
+        select_status, select_data = mail.select('INBOX')
+        if select_status != 'OK':
+            return []
+
+        ids: list[bytes] = []
+        if search_criterion == 'RECENT_SEQUENCE':
+            total = int(select_data[0]) if select_data and select_data[0] else 0
+            start = max(total - max(limit * 3, limit) + 1, 1)
+            ids = [str(i).encode() for i in range(start, total + 1)]
+        else:
+            status, data = mail.search(None, search_criterion)
+            if status != 'OK' or not data or not data[0]:
+                return []
+            ids = data[0].split()[-max(limit * 3, limit):]
+
+        items: list[EmailItem] = []
+        for msg_id in reversed(ids):
+            try:
+                status, msg_data = mail.fetch(msg_id, '(BODY.PEEK[])')
+                if status != 'OK':
+                    status, msg_data = mail.fetch(msg_id, '(RFC822)')
+                if status != 'OK':
+                    continue
+
+                raw = _extract_rfc822_bytes(msg_data)
+                if not raw:
+                    continue
+
+                msg = email.message_from_bytes(raw)
+                body, has_attachments = _extract_body(msg)
+                items.append(EmailItem(
+                    sender=_decode(msg.get('From')),
+                    subject=_decode(msg.get('Subject')),
+                    date=_decode(msg.get('Date')),
+                    body=body,
+                    has_attachments=has_attachments,
+                ))
+            except imaplib.IMAP4.abort:
+                continue
+            except Exception:
+                continue
+
+        items.sort(key=lambda item: _parse_email_date(item.date), reverse=True)
+        return items[:limit]
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
+
+
+def fetch_unread_emails(limit: int = 10) -> list[EmailItem]:
+    return _fetch_emails('UNSEEN', limit)
+
+
+def fetch_recent_emails(limit: int = 10) -> list[EmailItem]:
+    return _fetch_emails('RECENT_SEQUENCE', limit)
 
 
 def filter_emails_by_keyword(emails: Iterable[EmailItem], keyword: str) -> list[EmailItem]:

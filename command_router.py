@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from agents.classifier import classify_email
-from agents.collector import fetch_unread_emails, filter_emails_by_keyword
+from agents.collector import fetch_recent_emails, fetch_unread_emails, filter_emails_by_keyword
 from agents.drafter import draft_reply
 from core.models import EmailItem
 from core.session_store import get_email_by_index
@@ -32,7 +32,11 @@ def run_command(intent: Intent):
             return draft_reply(email)
         return [email]
 
-    emails = fetch_unread_emails(limit=max(intent.limit, 20) if intent.important_only or intent.keyword else intent.limit)
+    fetch_limit = max(intent.limit, 20) if intent.important_only or intent.keyword else intent.limit
+    if intent.action in {'list', 'detail'} and not intent.important_only and not intent.keyword:
+        emails = fetch_recent_emails(limit=fetch_limit)
+    else:
+        emails = fetch_unread_emails(limit=fetch_limit)
     emails = filter_emails_by_keyword(emails, intent.keyword)
     emails = _filter_important(emails, intent.important_only)
     emails = emails[:intent.limit]

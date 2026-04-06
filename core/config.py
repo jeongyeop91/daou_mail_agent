@@ -23,6 +23,8 @@ def _load_env_file() -> dict[str, str]:
 class Settings:
     imap_host: str = ''
     imap_port: int = 993
+    smtp_host: str = ''
+    smtp_port: int = 465
     email_address: str = ''
     email_password: str = ''
     telegram_mail_bot_token: str = ''
@@ -34,6 +36,8 @@ def load_settings() -> Settings:
     return Settings(
         imap_host=env.get('IMAP_HOST') or os.getenv('IMAP_HOST', ''),
         imap_port=int(env.get('IMAP_PORT') or os.getenv('IMAP_PORT', '993')),
+        smtp_host=env.get('SMTP_HOST') or os.getenv('SMTP_HOST', ''),
+        smtp_port=int(env.get('SMTP_PORT') or os.getenv('SMTP_PORT', '465')),
         email_address=env.get('EMAIL_ADDRESS') or os.getenv('EMAIL_ADDRESS', ''),
         email_password=env.get('EMAIL_PASSWORD') or os.getenv('EMAIL_PASSWORD', ''),
         telegram_mail_bot_token=env.get('TELEGRAM_MAIL_BOT_TOKEN') or os.getenv('TELEGRAM_MAIL_BOT_TOKEN', ''),

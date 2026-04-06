@@ -24,3 +24,10 @@
 
 ## 환경 변수
 `.env.example`를 참고해 `.env`를 준비하면 실제 메일/텔레그램 연결이 가능하다.
+
+다우오피스 기준 기본값은 아래와 같이 맞춰두었다.
+- IMAP: `imap.daouoffice.com:993`
+- SMTP: `smtp.daouoffice.com:465`
+- 메일 계정: `jylee1@rathontech.com`
+
+비밀번호는 `.env`의 `EMAIL_PASSWORD=`에 직접 넣으면 된다.

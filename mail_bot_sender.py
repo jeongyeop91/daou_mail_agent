@@ -8,7 +8,7 @@ import urllib.request
 from core.config import load_settings
 
 
-def send_mail_bot_message(text: str, chat_id: str | None = None, parse_mode: str | None = None) -> str:
+def send_mail_bot_message(text: str, chat_id: str | None = None, parse_mode: str | None = None, reply_markup: dict | None = None) -> str:
     settings = load_settings()
     token = settings.telegram_mail_bot_token
     chat_id = chat_id or settings.telegram_mail_bot_chat_id
@@ -17,6 +17,8 @@ def send_mail_bot_message(text: str, chat_id: str | None = None, parse_mode: str
     body = {'chat_id': chat_id, 'text': text}
     if parse_mode:
         body['parse_mode'] = parse_mode
+    if reply_markup:
+        body['reply_markup'] = json.dumps(reply_markup, ensure_ascii=False)
     payload = urllib.parse.urlencode(body).encode('utf-8')
     req = urllib.request.Request(f'https://api.telegram.org/bot{token}/sendMessage', data=payload, method='POST')
     try:
@@ -29,3 +31,20 @@ def send_mail_bot_message(text: str, chat_id: str | None = None, parse_mode: str
     if not data.get('ok'):
         return f"메일 봇 메시지 전송 실패: {data.get('description', 'unknown error')}"
     return f"메일 봇 메시지 전송 완료: message_id={data.get('result', {}).get('message_id')}"
+
+
+def answer_mail_bot_callback(callback_query_id: str, text: str | None = None) -> None:
+    settings = load_settings()
+    token = settings.telegram_mail_bot_token
+    if not token:
+        return
+    body = {'callback_query_id': callback_query_id}
+    if text:
+        body['text'] = text
+    payload = urllib.parse.urlencode(body).encode('utf-8')
+    req = urllib.request.Request(f'https://api.telegram.org/bot{token}/answerCallbackQuery', data=payload, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=15):
+            pass
+    except Exception:
+        pass

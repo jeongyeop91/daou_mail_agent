@@ -6,5 +6,5 @@
 - [x] 답장 필요한 메일 브리핑 복원
 - [x] 메일 봇 발송 유틸 복원
 - [ ] workday 브리핑 고도화
-- [ ] HTML 브리핑/버튼 UX 재복원
-- [ ] OpenClaw mail-agent 재연결
+- [x] HTML 브리핑/버튼 UX 기본 재복원
+- [ ] OpenClaw mail-agent 재연결 (프로젝트 외부 설정 작업이라 별도 단계)

@@ -6,6 +6,7 @@ import urllib.request
 from pathlib import Path
 
 from briefing_actions import BriefingAction, build_inline_keyboard, build_reply_keyboard
+from operations_briefing import build_mailbot_commands_help
 from core.config import load_settings
 from core.models import EmailItem
 from core.session_store import get_email_by_index
@@ -79,6 +80,29 @@ def _extract_detail_index(text: str) -> int | None:
     return 1
 
 
+def _build_main_menu() -> tuple[str, dict]:
+    text = '\n'.join([
+        '🤖 메일봇 메뉴',
+        '━━━━━━━━━━',
+        '자주 쓰는 기능을 아래 버튼으로 바로 실행할 수 있습니다.',
+        '',
+        '구성',
+        '- 메일 조회',
+        '- 업무 브리핑',
+        '- 일정 메일',
+        '- 운영 조회',
+    ])
+    buttons = build_inline_keyboard([
+        BriefingAction('📮 최근 메일', '최근 메일 5개 보여줘'),
+        BriefingAction('📄 메일 상세', '1번 메일 자세히 보여줘'),
+        BriefingAction('🧭 업무 브리핑', '오늘 업무 브리핑해줘'),
+        BriefingAction('📅 일정 메일', '일정 메일 브리핑해줘'),
+        BriefingAction('📊 메일 통계', '메일 통계 보여줘'),
+        BriefingAction('🧾 제안 히스토리', '제안 히스토리 보여줘'),
+    ], row_size=2)
+    return text, buttons
+
+
 def _build_workday_html() -> tuple[str, dict]:
     text = build_workday_briefing()
     actions = get_workday_next_actions(
@@ -130,9 +154,19 @@ def process_mail_bot_updates() -> str:
         text = (msg.get('text') or '').strip()
         chat_id = str((msg.get('chat') or {}).get('id') or '')
         if text and chat_id:
-            if text in {'오늘 업무 브리핑해줘', '업무 브리핑 보내줘'}:
+            if text in {'/menu', '메뉴 보여줘', '메일봇 메뉴 보여줘'}:
+                menu_text, menu_buttons = _build_main_menu()
+                send_mail_bot_message(menu_text, chat_id=chat_id, reply_markup=menu_buttons)
+                handled += 1
+            elif text in {'오늘 업무 브리핑해줘', '업무 브리핑 보내줘'}:
                 html, buttons = _build_workday_html()
                 send_mail_bot_message(html, chat_id=chat_id, parse_mode='HTML', reply_markup=buttons)
+                handled += 1
+            elif text in {'도움말', '메일봇 명령 보여줘'}:
+                help_text = build_mailbot_commands_help()
+                menu_text, menu_buttons = _build_main_menu()
+                send_mail_bot_message(help_text, chat_id=chat_id)
+                send_mail_bot_message(menu_text, chat_id=chat_id, reply_markup=menu_buttons)
                 handled += 1
             else:
                 reply = handle_message(text)

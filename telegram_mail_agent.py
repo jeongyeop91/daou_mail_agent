@@ -6,6 +6,7 @@ from approval_loop import handle_proposal_action, list_pending_proposals, propos
 from command_router import run_command
 from core.session_store import save_last_results
 from intent_parser import parse_intent
+from operations_briefing import build_mail_stats, build_mailbot_commands_help, build_proposal_history
 from proposal_executor import execute_approved_proposal
 from reply_needed_briefing import build_reply_needed_briefing
 from response_formatter import format_email_detail, format_email_list, format_summary
@@ -23,6 +24,12 @@ def handle_message(message: str) -> str:
         return build_schedule_mail_briefing()
     if text in {'메일 제안 보여줘', '메일 대기 제안 보여줘'}:
         return list_pending_proposals()
+    if text in {'제안 히스토리 보여줘', '메일 제안 히스토리 보여줘'}:
+        return build_proposal_history()
+    if text in {'메일 통계 보여줘', '알림 통계 보여줘'}:
+        return build_mail_stats()
+    if text in {'메일봇 명령 보여줘', '사용 가능한 명령 보여줘', '도움말'}:
+        return build_mailbot_commands_help()
     if text.startswith('메일 제안 ') and text.endswith(' 승인'):
         return handle_proposal_action(int(text.removeprefix('메일 제안 ').removesuffix(' 승인').strip()), '승인')
     if text.startswith('메일 제안 ') and text.endswith(' 거절'):

@@ -6,10 +6,10 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from agents.collector import fetch_recent_emails
-from important_mail_briefing import build_important_mail_briefing
+from important_mail_briefing import build_important_mail_briefing, mark_important_notified
 from mail_bot_sender import send_mail_bot_message
-from mail_cache import mark_notified, purge_old_cache
-from reply_needed_briefing import build_reply_needed_briefing
+from mail_cache import purge_old_cache
+from reply_needed_briefing import build_reply_needed_briefing, mark_reply_briefed
 from schedule_recommendation import build_schedule_recommendation, mark_schedule_recommendation_sent
 
 POLL_MINUTES = 10
@@ -22,24 +22,28 @@ def main() -> None:
     fetched = fetch_recent_emails(limit=10)
     print(f'FETCHED={len(fetched)}')
 
-    important_text, important_emails = build_important_mail_briefing(limit=5, unnotified_only=True)
+    important_text, important_emails, important_buttons = build_important_mail_briefing(limit=5, unnotified_only=True)
     if important_emails:
-        important_result = send_mail_bot_message(important_text)
+        important_result = send_mail_bot_message(important_text, reply_markup=important_buttons)
         print(important_result)
         marked = 0
         if '전송 완료' in important_result:
-            marked = mark_notified(important_emails)
+            marked = mark_important_notified(important_emails)
         print(f'IMPORTANT_NOTIFY={len(important_emails)}')
         print(f'IMPORTANT_MARKED={marked}')
     else:
         print('IMPORTANT_NOTIFY=0')
         print(important_text)
 
-    reply_text = build_reply_needed_briefing(limit=5)
-    if reply_text != '새롭게 브리핑할 답장 필요 메일이 없습니다.':
-        reply_result = send_mail_bot_message(reply_text)
+    reply_text, reply_emails, reply_buttons = build_reply_needed_briefing(limit=5)
+    if reply_emails:
+        reply_result = send_mail_bot_message(reply_text, reply_markup=reply_buttons)
         print(reply_result)
+        marked = 0
+        if '전송 완료' in reply_result:
+            marked = mark_reply_briefed(reply_emails)
         print('REPLY_BRIEFED=1')
+        print(f'REPLY_MARKED={marked}')
     else:
         print('REPLY_BRIEFED=0')
         print(reply_text)

@@ -104,7 +104,8 @@ def handle_message(message: str) -> str:
 
     intent = parse_intent(text)
     if intent.action == 'reply_briefing':
-        return build_reply_needed_briefing(intent.limit)
+        reply_text, _emails, _buttons = build_reply_needed_briefing(intent.limit)
+        return reply_text
 
     result = run_command(intent)
     if isinstance(result, str):

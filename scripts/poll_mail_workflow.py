@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from agents.collector import fetch_recent_emails
+from important_mail_briefing import build_important_mail_briefing
+from mail_bot_sender import send_mail_bot_message
+from mail_cache import mark_notified
+from reply_needed_briefing import build_reply_needed_briefing
+
+POLL_MINUTES = 10
+
+
+def main() -> None:
+    fetched = fetch_recent_emails(limit=10)
+    print(f'FETCHED={len(fetched)}')
+
+    important_text, important_emails = build_important_mail_briefing(limit=5, unnotified_only=True)
+    if important_emails:
+        important_result = send_mail_bot_message(important_text)
+        print(important_result)
+        marked = 0
+        if '전송 완료' in important_result:
+            marked = mark_notified(important_emails)
+        print(f'IMPORTANT_NOTIFY={len(important_emails)}')
+        print(f'IMPORTANT_MARKED={marked}')
+    else:
+        print('IMPORTANT_NOTIFY=0')
+        print(important_text)
+
+    reply_text = build_reply_needed_briefing(limit=5)
+    if reply_text != '새롭게 브리핑할 답장 필요 메일이 없습니다.':
+        reply_result = send_mail_bot_message(reply_text)
+        print(reply_result)
+        print('REPLY_BRIEFED=1')
+    else:
+        print('REPLY_BRIEFED=0')
+        print(reply_text)
+
+    print(f'INTERVAL_MINUTES={POLL_MINUTES}')
+
+
+if __name__ == '__main__':
+    main()

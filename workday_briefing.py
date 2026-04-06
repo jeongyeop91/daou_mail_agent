@@ -16,28 +16,42 @@ def build_workday_briefing() -> str:
     lines = [
         '📮 오늘 업무 브리핑',
         '━━━━━━━━━━',
-        '<한눈 요약>',
+        '한눈 요약',
         f'🔴 중요 메일 {len(important)}건',
         f'🔵 오늘 일정 {len(events)}건',
         f'🟡 오늘 할 일 {len(tasks)}건',
-        '',
     ]
+
     if important:
-        lines.append('━━━━━━━━━━')
+        lines.extend(['', '━━━━━━━━━━', '우선 확인 메일'])
         for idx, email in enumerate(important, start=1):
             lines.append(f'{idx}. [{categorize_email(email)}] {email.subject}')
             lines.append(f'보낸 사람: {email.sender}')
-            lines.append('우선 확인이 필요한 항목으로 정리했습니다.')
+            lines.append('우선 확인이 필요한 항목으로 분류되어 먼저 살펴보시는 것을 권장드립니다.')
             lines.append('')
         if lines[-1] == '':
             lines.pop()
+
     if events:
         lines.extend(['', '━━━━━━━━━━', '오늘 일정'])
         for event in events[:2]:
             lines.append(f'- {event.get("summary")}')
+
     if tasks:
-        lines.extend(['', '할 일'])
+        lines.extend(['', '오늘 할 일'])
         for task in tasks[:2]:
             lines.append(f'- {task.get("title")}')
-    lines.extend(['', '━━━━━━━━━━', '바로 하기', '1번 메일 자세히 보여줘', '오늘 일정 뭐야?', '전체 할 일 보여줘'])
+
+    lines.extend([
+        '',
+        '━━━━━━━━━━',
+        '현재 상태 요약',
+        '기본 메일 처리 흐름과 업무 브리핑 기능은 확인 가능한 상태입니다.',
+        '우선 메일 확인 후 일정과 할 일을 함께 정리하는 방식으로 활용하실 수 있습니다.',
+        '',
+        '바로 하기',
+        '1번 메일 자세히 보여줘',
+        '오늘 일정 뭐야?',
+        '전체 할 일 보여줘',
+    ])
     return '\n'.join(lines)

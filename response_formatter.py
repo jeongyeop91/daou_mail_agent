@@ -52,13 +52,19 @@ def format_summary(emails: list[EmailItem]) -> str:
     lines = [
         '📮 메일 브리핑',
         '━━━━━━━━━━',
-        f'중요 메일 = {sum(1 for e in emails if classify_email(e) == "중요")}건',
-        f'결재 메일 = {sum(1 for e in emails if categorize_email(e) == "결재")}건',
-        f'보안 메일 = {sum(1 for e in emails if categorize_email(e) == "보안")}건',
+        '요약',
+        f'중요 메일 {sum(1 for e in emails if classify_email(e) == "중요")}건',
+        f'결재 메일 {sum(1 for e in emails if categorize_email(e) == "결재")}건',
+        f'보안 메일 {sum(1 for e in emails if categorize_email(e) == "보안")}건',
         '',
+        '주요 메일',
     ]
     for idx, email in enumerate(emails[:5], start=1):
         lines.append(f'{idx}. [{classify_email(email)}/{categorize_email(email)}] {email.subject}')
         lines.append(f'보낸 사람: {email.sender}')
-    lines.extend(['', '바로 하기 = 1번 메일 자세히 보여줘 / 답장 필요한 메일 브리핑해줘'])
+        lines.append('우선 확인 후 필요 시 상세 보기나 회신 초안 작성으로 이어가실 수 있습니다.')
+        lines.append('')
+    if lines[-1] == '':
+        lines.pop()
+    lines.extend(['', '바로 하기', '1번 메일 자세히 보여줘', '답장 필요한 메일 브리핑해줘'])
     return '\n'.join(lines)

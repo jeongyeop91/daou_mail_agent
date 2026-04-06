@@ -4,3 +4,10 @@ __pycache__/
 *.pyc
 data/*.json
 !data/.gitkeep
+
+# OpenClaw workspace-local files
+.openclaw/
+HEARTBEAT.md
+IDENTITY.md
+TOOLS.md
+USER.md

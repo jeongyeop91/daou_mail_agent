@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from briefing_actions import BriefingAction, build_inline_keyboard
-from mail_cache import get_cached_schedule_candidate_emails, mark_schedule_proposed
+from storage.mail_cache import get_cached_schedule_candidate_emails, mark_schedule_proposed
 from schedule_mail import extract_schedule_candidate
 
 

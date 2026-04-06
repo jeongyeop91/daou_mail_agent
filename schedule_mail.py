@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from agents.collector import fetch_recent_emails
-from approval_loop import propose_action
+from proposals.approval_loop import propose_action
 from core.models import EmailItem
 from core.session_store import get_email_by_index, save_last_results
 

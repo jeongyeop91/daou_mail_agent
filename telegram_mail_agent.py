@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import sys
 
-from approval_loop import handle_proposal_action, list_pending_proposals, propose_action
+from proposals.approval_loop import handle_proposal_action, list_pending_proposals, propose_action
 from command_router import run_command
 from core.session_store import save_last_results
 from intent_parser import parse_intent
-from operations_briefing import build_mail_stats, build_mailbot_commands_help, build_proposal_history
-from proposal_executor import execute_approved_proposal
-from reply_needed_briefing import build_reply_needed_briefing
+from briefings.operations_briefing import build_mail_stats, build_mailbot_commands_help, build_proposal_history
+from proposals.proposal_executor import execute_approved_proposal
+from briefings.reply_needed_briefing import build_reply_needed_briefing
 from response_formatter import format_email_detail, format_email_list, format_summary
 from schedule_mail import build_schedule_mail_briefing, propose_email_calendar_cancel, propose_email_calendar_update, propose_email_to_google_calendar, register_email_to_google_calendar
 
@@ -18,7 +18,7 @@ def handle_message(message: str) -> str:
     if text in {'마지막 메일이 뭐야?', '가장 최근 메일이 뭐야?', '방금 온 메일 뭐야?'}:
         text = '최근 메일 1개 보여줘'
     if text in {'오늘 업무 브리핑해줘', '오늘 전체 브리핑해줘'}:
-        from workday_briefing import build_workday_briefing
+        from briefings.workday_briefing import build_workday_briefing
         return build_workday_briefing()
     if text in {'일정 메일 브리핑해줘', '스케줄 메일 브리핑해줘'}:
         return build_schedule_mail_briefing()
@@ -37,19 +37,19 @@ def handle_message(message: str) -> str:
     if text.startswith('메일 제안 ') and text.endswith(' 실행'):
         return execute_approved_proposal(int(text.removeprefix('메일 제안 ').removesuffix(' 실행').strip()))
     if text in {'오늘 일정 뭐야?', '오늘 일정 보여줘'}:
-        from calendar_briefing import build_calendar_briefing
+        from briefings.calendar_briefing import build_calendar_briefing
         return build_calendar_briefing('today')
     if text in {'내일 일정 뭐야?', '내일 일정 보여줘'}:
-        from calendar_briefing import build_calendar_briefing
+        from briefings.calendar_briefing import build_calendar_briefing
         return build_calendar_briefing('tomorrow')
     if text in {'이번 주 일정 뭐야?', '이번 주 일정 보여줘'}:
-        from calendar_briefing import build_calendar_briefing
+        from briefings.calendar_briefing import build_calendar_briefing
         return build_calendar_briefing('week')
     if text in {'오늘 할 일 뭐야?', '오늘 할 일 보여줘'}:
-        from tasks_briefing import build_tasks_briefing
+        from briefings.tasks_briefing import build_tasks_briefing
         return build_tasks_briefing('today')
     if text in {'전체 할 일 보여줘', '할 일 브리핑해줘'}:
-        from tasks_briefing import build_tasks_briefing
+        from briefings.tasks_briefing import build_tasks_briefing
         return build_tasks_briefing('all')
     if text.startswith('할 일 추가해줘 '):
         from task_actions import add_task

@@ -5,9 +5,9 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from reply_needed_briefing import build_reply_needed_briefing
+from briefings.reply_needed_briefing import build_reply_needed_briefing
 from scripts.warm_mail_cache import main as warm_cache
-from mail_cache import get_cached_reply_needed_emails
+from storage.mail_cache import get_cached_reply_needed_emails
 
 
 def main() -> None:

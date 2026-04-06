@@ -6,9 +6,9 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from agents.collector import fetch_recent_emails
-from important_mail_briefing import build_important_mail_briefing
-from mail_bot_sender import send_mail_bot_message
-from mail_cache import mark_notified
+from briefings.important_mail_briefing import build_important_mail_briefing
+from mailbot.mail_bot_sender import send_mail_bot_message
+from storage.mail_cache import mark_notified
 
 POLL_MINUTES = 10
 

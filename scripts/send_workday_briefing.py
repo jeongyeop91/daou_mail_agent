@@ -5,8 +5,8 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from mail_bot_sender import send_mail_bot_message
-from workday_briefing import build_workday_briefing
+from mailbot.mail_bot_sender import send_mail_bot_message
+from briefings.workday_briefing import build_workday_briefing
 
 
 def main() -> None:

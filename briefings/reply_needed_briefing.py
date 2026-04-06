@@ -4,7 +4,7 @@ from agents.advisor import suggest_next_action
 from agents.classifier import classify_email
 from briefing_actions import BriefingAction, build_inline_keyboard
 from category_rules import categorize_email
-from mail_cache import get_cached_reply_needed_emails, mark_briefed
+from storage.mail_cache import get_cached_reply_needed_emails, mark_briefed
 
 
 def build_reply_needed_briefing(limit: int = 10) -> tuple[str, list, dict | None]:

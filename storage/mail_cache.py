@@ -11,7 +11,7 @@ from core.models import EmailItem
 
 REPLY_HINTS = ('회신', '확인', '검토', '승인')
 
-DB_PATH = Path(__file__).resolve().parent / 'data' / 'mail_cache.db'
+DB_PATH = Path(__file__).resolve().parent.parent / 'data' / 'mail_cache.db'
 RETENTION_DAYS = 180
 
 

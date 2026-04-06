@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from daily_briefing import build_daily_briefing
-from mail_bot_sender import send_mail_bot_message
+from mailbot.mail_bot_sender import send_mail_bot_message
 
 
 def send_daily_briefing_to_mail_bot() -> str:

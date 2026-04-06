@@ -6,11 +6,11 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from agents.collector import fetch_recent_emails
-from important_mail_briefing import build_important_mail_briefing, mark_important_notified
-from mail_bot_sender import send_mail_bot_message
-from mail_cache import purge_old_cache
-from reply_needed_briefing import build_reply_needed_briefing, mark_reply_briefed
-from schedule_recommendation import build_schedule_recommendation, mark_schedule_recommendation_sent
+from briefings.important_mail_briefing import build_important_mail_briefing, mark_important_notified
+from mailbot.mail_bot_sender import send_mail_bot_message
+from storage.mail_cache import purge_old_cache
+from briefings.reply_needed_briefing import build_reply_needed_briefing, mark_reply_briefed
+from briefings.schedule_recommendation import build_schedule_recommendation, mark_schedule_recommendation_sent
 
 POLL_MINUTES = 30
 RETENTION_DAYS = 180

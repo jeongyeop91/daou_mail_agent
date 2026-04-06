@@ -5,8 +5,8 @@ from collections import Counter
 from pathlib import Path
 
 from core.proposals import list_proposals
-from mail_cache import _connect, init_mail_cache
-from proposal_executor import _load_execs
+from storage.mail_cache import _connect, init_mail_cache
+from proposals.proposal_executor import _load_execs
 
 
 def build_proposal_history(limit: int = 10) -> str:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from mail_cache import get_cached_reply_needed_emails, mark_briefed
+from storage.mail_cache import get_cached_reply_needed_emails, mark_briefed
 
 
 def main() -> None:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from core.proposals import list_proposals, update_proposal_status
 
-EXEC_PATH = Path(__file__).resolve().parent / 'data' / 'proposal_executions.json'
+EXEC_PATH = Path(__file__).resolve().parent.parent / 'data' / 'proposal_executions.json'
 
 
 def _load_execs() -> list[dict]:

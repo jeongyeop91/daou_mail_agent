@@ -6,16 +6,16 @@ import urllib.request
 from pathlib import Path
 
 from briefing_actions import BriefingAction, build_inline_keyboard, build_reply_keyboard
-from operations_briefing import build_mailbot_commands_help
+from briefings.operations_briefing import build_mailbot_commands_help
 from core.config import load_settings
 from core.models import EmailItem
 from core.session_store import get_email_by_index
-from mail_bot_sender import answer_mail_bot_callback, send_mail_bot_message
+from mailbot.mail_bot_sender import answer_mail_bot_callback, send_mail_bot_message
 from schedule_mail import extract_schedule_candidate
 from telegram_mail_agent import handle_message
-from workday_briefing import build_workday_briefing, get_workday_next_actions
+from briefings.workday_briefing import build_workday_briefing, get_workday_next_actions
 
-STATE_PATH = Path(__file__).resolve().parent / 'data' / 'mail_bot_state.json'
+STATE_PATH = Path(__file__).resolve().parent.parent / 'data' / 'mail_bot_state.json'
 
 
 def _load_state() -> dict:

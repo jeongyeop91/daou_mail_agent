@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from mail_cache import get_cached_recent, init_mail_cache
+from storage.mail_cache import get_cached_recent, init_mail_cache
 
 
 def main() -> None:

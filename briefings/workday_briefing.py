@@ -3,9 +3,9 @@ from __future__ import annotations
 from agents.collector import fetch_unread_emails
 from agents.classifier import classify_email
 from briefing_actions import BriefingAction
-from calendar_briefing import fetch_calendar_events
+from briefings.calendar_briefing import fetch_calendar_events
 from category_rules import categorize_email
-from tasks_briefing import _fetch_tasks
+from briefings.tasks_briefing import _fetch_tasks
 
 
 DEFAULT_NEXT_ACTIONS = [

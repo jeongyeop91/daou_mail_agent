@@ -9,7 +9,7 @@ from typing import Iterable
 
 from core.config import load_settings
 from core.models import EmailItem
-from mail_cache import cache_emails
+from storage.mail_cache import cache_emails
 
 
 def _decode(value: str | bytes | None) -> str:

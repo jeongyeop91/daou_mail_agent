@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from daily_briefing import build_daily_briefing
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from briefings.daily_briefing import build_daily_briefing
 from mailbot.mail_bot_sender import send_mail_bot_message
 
 

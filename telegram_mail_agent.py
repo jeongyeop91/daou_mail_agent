@@ -9,7 +9,7 @@ from intent_parser import parse_intent
 from briefings.operations_briefing import build_mail_stats, build_mailbot_commands_help, build_proposal_history
 from proposals.proposal_executor import execute_approved_proposal
 from briefings.reply_needed_briefing import build_reply_needed_briefing
-from response_formatter import format_email_detail, format_email_list, format_summary
+from briefings.response_formatter import format_email_detail, format_email_list, format_summary
 from schedule_mail import build_schedule_mail_briefing, propose_email_calendar_cancel, propose_email_calendar_update, propose_email_to_google_calendar, register_email_to_google_calendar
 
 

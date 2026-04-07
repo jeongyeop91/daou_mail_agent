@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from command_router import run_command
 from intent_parser import Intent
-from response_formatter import format_summary
+from briefings.response_formatter import format_summary
 
 
 def build_daily_briefing() -> str:

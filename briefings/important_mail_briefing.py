@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from agents.advisor import suggest_next_action
 from agents.classifier import classify_email
-from briefing_actions import BriefingAction, build_inline_keyboard
+from briefings.mail_action_builder import build_mail_action_keyboard
 from category_rules import categorize_email
 from storage.mail_cache import get_cached_important_emails, mark_notified
 
@@ -21,15 +21,13 @@ def build_important_mail_briefing(limit: int = 5, *, unnotified_only: bool = Tru
         '',
         '상세 목록',
     ]
-    actions: list[BriefingAction] = []
     for idx, email in enumerate(emails, start=1):
         lines.append(f'{idx}. [{classify_email(email)}/{categorize_email(email)}] {email.subject}')
         lines.append(f'보낸 사람: {email.sender}')
-        actions.append(BriefingAction(f'📄 {idx}번 메일 보기', f'{idx}번 메일 자세히 보여줘'))
         lines.append(f'권장 조치: {suggest_next_action(email)}')
-        lines.append(f'바로 하기: {idx}번 메일 자세히 보여줘')
+        lines.append('바로 하기는 아래 버튼에서 실행할 수 있습니다.')
         lines.append('')
-    return '\n'.join(lines[:-1]), emails, build_inline_keyboard(actions, row_size=1)
+    return '\n'.join(lines[:-1]), emails, build_mail_action_keyboard(emails, primary='detail')
 
 
 def mark_important_notified(emails: list) -> int:

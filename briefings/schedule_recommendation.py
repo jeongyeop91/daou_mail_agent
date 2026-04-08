@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from briefing_actions import BriefingAction, build_inline_keyboard
+from briefings.mail_action_builder import build_mail_action_keyboard
 from storage.mail_cache import get_cached_schedule_candidate_emails, mark_schedule_proposed
 from schedule_mail import extract_schedule_candidate
 
@@ -27,7 +27,6 @@ def build_schedule_recommendation(limit: int = 3) -> tuple[str, list, dict | Non
         '상세 목록',
     ]
     emails = []
-    actions: list[BriefingAction] = []
     for idx, (email, candidate) in enumerate(candidates, start=1):
         emails.append(email)
         lines.append(f'{idx}. {candidate.title}')
@@ -35,11 +34,9 @@ def build_schedule_recommendation(limit: int = 3) -> tuple[str, list, dict | Non
         if candidate.location:
             lines.append(f'장소: {candidate.location}')
         lines.append(f'보낸 사람: {email.sender}')
-        command = f'{idx}번 메일 일정등록 제안해줘'
-        actions.append(BriefingAction(f'📅 {idx}번 일정 제안', command))
-        lines.append(f'권장 조치: {command}')
+        lines.append('권장 조치: 아래 버튼에서 일정 제안을 바로 실행할 수 있습니다.')
         lines.append('')
-    return '\n'.join(lines[:-1]), emails, build_inline_keyboard(actions, row_size=1)
+    return '\n'.join(lines[:-1]), emails, build_mail_action_keyboard(emails, primary='schedule')
 
 
 def mark_schedule_recommendation_sent(emails: list) -> int:

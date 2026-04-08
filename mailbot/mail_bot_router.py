@@ -5,7 +5,7 @@ import re
 import urllib.request
 from pathlib import Path
 
-from briefing_actions import BriefingAction, build_inline_keyboard, build_reply_keyboard
+from briefing_actions import BriefingAction, build_inline_keyboard
 from agents.drafter import draft_reply
 from briefings.operations_briefing import build_mailbot_commands_help
 from briefings.response_formatter import format_email_detail

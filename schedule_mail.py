@@ -160,27 +160,41 @@ def _find_duplicate_event(candidate: ScheduleCandidate) -> bool:
     return _find_matching_event(candidate) is not None
 
 
-def propose_email_to_google_calendar(index: int) -> str:
-    saved = get_email_by_index(index)
-    if not saved:
-        return '참조할 일정 메일을 찾지 못했습니다. 먼저 일정 메일 브리핑을 조회해 주세요.'
-    email = EmailItem(**saved)
+def _propose_schedule_candidate(email: EmailItem, *, expected_action: str) -> str:
     candidate = extract_schedule_candidate(email)
     if not candidate:
         return '해당 메일에서 일정 정보를 추출하지 못했습니다.'
-    if candidate.action != 'create':
-        return '신규 일정 등록 메일이 아닙니다. 수정/취소 전용 제안을 사용해 주세요.'
-    if _find_duplicate_event(candidate):
+    if candidate.action != expected_action:
+        labels = {'create': '신규 일정 등록', 'update': '일정 수정', 'cancel': '일정 취소'}
+        return f"{labels.get(expected_action, '요청')} 메일이 아닙니다."
+    if expected_action == 'create' and _find_duplicate_event(candidate):
         return '같은 제목과 시간대의 일정이 이미 구글 캘린더에 있어 등록을 보류했습니다.'
     payload = {
-        'kind': 'calendar_register',
+        'kind': f'calendar_{expected_action if expected_action != "cancel" else "cancel"}',
         'title': candidate.title,
         'start_at': candidate.start_at.isoformat(),
         'end_at': candidate.end_at.isoformat(),
         'description': candidate.description,
         'location': candidate.location,
     }
-    return propose_action(f'구글 일정 등록: {candidate.title}', payload)
+    if expected_action in {'update', 'cancel'}:
+        event = _find_matching_event(candidate)
+        if not event:
+            return f"{'수정' if expected_action == 'update' else '취소'}할 기존 구글 일정을 찾지 못했습니다."
+        payload['event_id'] = event.get('id')
+    return propose_action(f"구글 일정 {'등록' if expected_action == 'create' else '수정' if expected_action == 'update' else '취소'}: {candidate.title}", payload)
+
+
+def propose_email_to_google_calendar(index: int) -> str:
+    saved = get_email_by_index(index)
+    if not saved:
+        return '참조할 일정 메일을 찾지 못했습니다. 먼저 일정 메일 브리핑을 조회해 주세요.'
+    email = EmailItem(**saved)
+    return propose_schedule_create_for_email(email)
+
+
+def propose_schedule_create_for_email(email: EmailItem) -> str:
+    return _propose_schedule_candidate(email, expected_action='create')
 
 
 def propose_email_calendar_update(index: int) -> str:
@@ -188,22 +202,11 @@ def propose_email_calendar_update(index: int) -> str:
     if not saved:
         return '참조할 일정 메일을 찾지 못했습니다. 먼저 일정 메일 브리핑을 조회해 주세요.'
     email = EmailItem(**saved)
-    candidate = extract_schedule_candidate(email)
-    if not candidate:
-        return '해당 메일에서 일정 정보를 추출하지 못했습니다.'
-    event = _find_matching_event(candidate)
-    if not event:
-        return '수정할 기존 구글 일정을 찾지 못했습니다.'
-    payload = {
-        'kind': 'calendar_update',
-        'event_id': event.get('id'),
-        'title': candidate.title,
-        'start_at': candidate.start_at.isoformat(),
-        'end_at': candidate.end_at.isoformat(),
-        'description': candidate.description,
-        'location': candidate.location,
-    }
-    return propose_action(f'구글 일정 수정: {candidate.title}', payload)
+    return propose_schedule_update_for_email(email)
+
+
+def propose_schedule_update_for_email(email: EmailItem) -> str:
+    return _propose_schedule_candidate(email, expected_action='update')
 
 
 def propose_email_calendar_cancel(index: int) -> str:
@@ -211,18 +214,11 @@ def propose_email_calendar_cancel(index: int) -> str:
     if not saved:
         return '참조할 일정 메일을 찾지 못했습니다. 먼저 일정 메일 브리핑을 조회해 주세요.'
     email = EmailItem(**saved)
-    candidate = extract_schedule_candidate(email)
-    if not candidate:
-        return '해당 메일에서 일정 정보를 추출하지 못했습니다.'
-    event = _find_matching_event(candidate)
-    if not event:
-        return '취소할 기존 구글 일정을 찾지 못했습니다.'
-    payload = {
-        'kind': 'calendar_cancel',
-        'event_id': event.get('id'),
-        'title': candidate.title,
-    }
-    return propose_action(f'구글 일정 취소: {candidate.title}', payload)
+    return propose_schedule_cancel_for_email(email)
+
+
+def propose_schedule_cancel_for_email(email: EmailItem) -> str:
+    return _propose_schedule_candidate(email, expected_action='cancel')
 
 
 def register_email_to_google_calendar(index: int) -> str:

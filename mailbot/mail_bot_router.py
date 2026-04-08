@@ -6,12 +6,14 @@ import urllib.request
 from pathlib import Path
 
 from briefing_actions import BriefingAction, build_inline_keyboard, build_reply_keyboard
+from agents.drafter import draft_reply
 from briefings.operations_briefing import build_mailbot_commands_help
+from briefings.response_formatter import format_email_detail
 from core.config import load_settings
 from core.models import EmailItem
-from core.session_store import get_email_by_index
+from core.session_store import get_email_by_index, get_email_by_token, save_button_target
 from mailbot.mail_bot_sender import answer_mail_bot_callback, send_mail_bot_message
-from schedule_mail import extract_schedule_candidate
+from schedule_mail import extract_schedule_candidate, propose_schedule_cancel_for_email, propose_schedule_create_for_email, propose_schedule_update_for_email
 from telegram_mail_agent import handle_message
 from briefings.workday_briefing import build_workday_briefing, get_workday_next_actions
 
@@ -53,22 +55,61 @@ def _load_email(index: int) -> EmailItem | None:
 
 
 def _detail_action_buttons(index: int = 1) -> dict:
-    actions = [
-        BriefingAction('✍️ 답장 초안', f'{index}번 메일 답장 초안 써줘'),
-        BriefingAction('📄 원문 보기', f'{index}번 메일 자세히 보여줘'),
-    ]
     email = _load_email(index)
-    if email:
-        schedule_candidate = extract_schedule_candidate(email)
-        if schedule_candidate:
-            if schedule_candidate.action == 'create':
-                actions.append(BriefingAction('📅 일정 제안', f'{index}번 메일 일정등록 제안해줘'))
-            elif schedule_candidate.action == 'update':
-                actions.append(BriefingAction('🛠 일정 수정 제안', f'{index}번 메일 일정수정 제안해줘'))
-            elif schedule_candidate.action == 'cancel':
-                actions.append(BriefingAction('🗑 일정 취소 제안', f'{index}번 메일 일정취소 제안해줘'))
+    if not email:
+        actions = [
+            BriefingAction('✍️ 답장 초안', f'{index}번 메일 답장 초안 써줘'),
+            BriefingAction('📄 원문 보기', f'{index}번 메일 자세히 보여줘'),
+            BriefingAction('📮 업무 브리핑', '오늘 업무 브리핑해줘'),
+        ]
+        return build_inline_keyboard(actions, row_size=2)
+
+    token = save_button_target(email)
+    actions = [
+        BriefingAction('✍️ 답장 초안', f'@mailtoken:{token}:draft'),
+        BriefingAction('📄 원문 보기', f'@mailtoken:{token}:detail'),
+    ]
+    schedule_candidate = extract_schedule_candidate(email)
+    if schedule_candidate:
+        if schedule_candidate.action == 'create':
+            actions.append(BriefingAction('📅 일정 제안', f'@mailtoken:{token}:schedule_create'))
+        elif schedule_candidate.action == 'update':
+            actions.append(BriefingAction('🛠 일정 수정 제안', f'@mailtoken:{token}:schedule_update'))
+        elif schedule_candidate.action == 'cancel':
+            actions.append(BriefingAction('🗑 일정 취소 제안', f'@mailtoken:{token}:schedule_cancel'))
     actions.append(BriefingAction('📮 업무 브리핑', '오늘 업무 브리핑해줘'))
     return build_inline_keyboard(actions, row_size=2)
+
+
+def _handle_mail_token_command(command: str) -> tuple[str, dict | None]:
+    if not command.startswith('@mailtoken:'):
+        return handle_message(command), None
+    try:
+        _, token, action = command.split(':', 2)
+    except ValueError:
+        return '메일 버튼 정보를 해석하지 못했습니다.', None
+    saved = get_email_by_token(token)
+    if not saved:
+        return '참조할 메일을 찾지 못했습니다. 다시 목록에서 선택해 주세요.', None
+    email = EmailItem(**saved)
+    if action == 'detail':
+        return format_email_detail(email), build_inline_keyboard([
+            BriefingAction('✍️ 답장 초안', f'@mailtoken:{token}:draft'),
+            BriefingAction('📄 원문 보기', f'@mailtoken:{token}:detail'),
+            BriefingAction('📮 업무 브리핑', '오늘 업무 브리핑해줘'),
+        ], row_size=2)
+    if action == 'draft':
+        return draft_reply(email), build_inline_keyboard([
+            BriefingAction('📄 원문 보기', f'@mailtoken:{token}:detail'),
+            BriefingAction('📮 업무 브리핑', '오늘 업무 브리핑해줘'),
+        ], row_size=2)
+    if action == 'schedule_create':
+        return propose_schedule_create_for_email(email), None
+    if action == 'schedule_update':
+        return propose_schedule_update_for_email(email), None
+    if action == 'schedule_cancel':
+        return propose_schedule_cancel_for_email(email), None
+    return '지원하지 않는 메일 버튼 동작입니다.', None
 
 
 def _extract_detail_index(text: str) -> int | None:
@@ -139,12 +180,16 @@ def process_mail_bot_updates() -> str:
             chat_id = str(((callback.get('message') or {}).get('chat') or {}).get('id') or '')
             if data.startswith('cmd:') and chat_id:
                 command = data.removeprefix('cmd:').strip()
-                reply = handle_message(command)
-                idx = _extract_detail_index(command)
-                if idx is not None:
-                    send_mail_bot_message(reply, chat_id=chat_id, reply_markup=_detail_action_buttons(idx))
+                if command.startswith('@mailtoken:'):
+                    reply, buttons = _handle_mail_token_command(command)
+                    send_mail_bot_message(reply, chat_id=chat_id, reply_markup=buttons)
                 else:
-                    send_mail_bot_message(reply, chat_id=chat_id)
+                    reply = handle_message(command)
+                    idx = _extract_detail_index(command)
+                    if idx is not None:
+                        send_mail_bot_message(reply, chat_id=chat_id, reply_markup=_detail_action_buttons(idx))
+                    else:
+                        send_mail_bot_message(reply, chat_id=chat_id)
                 answer_mail_bot_callback(callback.get('id'), '실행했습니다')
                 handled += 1
             state['last_update_id'] = update_id

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import email
+import html
 import imaplib
+import re
 from datetime import datetime, timezone
 from email.header import decode_header, make_header
 from email.utils import parsedate_to_datetime
@@ -21,6 +23,26 @@ def _decode(value: str | bytes | None) -> str:
         return str(value)
 
 
+def _clean_html_text(value: str) -> str:
+    text = value.replace('\r', '\n')
+    text = re.sub(r'(?is)<br\s*/?>', '\n', text)
+    text = re.sub(r'(?is)</p\s*>', '\n\n', text)
+    text = re.sub(r'(?is)</div\s*>', '\n', text)
+    text = re.sub(r'(?is)</tr\s*>', '\n', text)
+    text = re.sub(r'(?is)</li\s*>', '\n', text)
+    text = re.sub(r'(?is)<li[^>]*>', '- ', text)
+    text = re.sub(r'(?is)<style.*?>.*?</style>', ' ', text)
+    text = re.sub(r'(?is)<script.*?>.*?</script>', ' ', text)
+    text = re.sub(r'(?is)<head.*?>.*?</head>', ' ', text)
+    text = re.sub(r'(?is)<[^>]+>', ' ', text)
+    text = html.unescape(text)
+    text = text.replace('\xa0', ' ')
+    text = re.sub(r'\n[ \t]+', '\n', text)
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 def _extract_body(msg) -> tuple[str, bool]:
     has_attachments = False
     if msg.is_multipart():
@@ -30,20 +52,24 @@ def _extract_body(msg) -> tuple[str, bool]:
             if 'attachment' in disposition.lower():
                 has_attachments = True
             ctype = part.get_content_type()
-            if ctype == 'text/plain' and 'attachment' not in disposition.lower():
+            if ctype in {'text/plain', 'text/html'} and 'attachment' not in disposition.lower():
                 payload = part.get_payload(decode=True) or b''
                 charset = part.get_content_charset() or 'utf-8'
                 try:
-                    parts.append(payload.decode(charset, errors='ignore'))
+                    decoded = payload.decode(charset, errors='ignore')
                 except Exception:
-                    parts.append(payload.decode('utf-8', errors='ignore'))
-        return '\n'.join(parts).strip(), has_attachments
+                    decoded = payload.decode('utf-8', errors='ignore')
+                parts.append(_clean_html_text(decoded) if ctype == 'text/html' else decoded.strip())
+        merged = '\n\n'.join(part for part in parts if part.strip()).strip()
+        return merged, has_attachments
     payload = msg.get_payload(decode=True) or b''
     charset = msg.get_content_charset() or 'utf-8'
     try:
         body = payload.decode(charset, errors='ignore')
     except Exception:
         body = payload.decode('utf-8', errors='ignore')
+    if msg.get_content_type() == 'text/html':
+        body = _clean_html_text(body)
     return body.strip(), has_attachments
 
 

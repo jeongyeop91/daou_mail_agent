@@ -23,8 +23,7 @@ def format_email_detail(email: EmailItem) -> str:
         f'권장 조치: {suggest_next_action(email)}',
         '━━━━━━━━━━',
         '바로 하기',
-        '1번 메일 답장 초안 써줘',
-        '1번 메일 자세히 보여줘',
+        '아래 버튼에서 답장 초안 또는 메일 상세 보기를 실행할 수 있습니다.',
     ]
     return '\n'.join(lines)
 
@@ -66,5 +65,5 @@ def format_summary(emails: list[EmailItem]) -> str:
         lines.append('')
     if lines[-1] == '':
         lines.pop()
-    lines.extend(['', '바로 하기', '1번 메일 자세히 보여줘', '답장 필요한 메일 브리핑해줘'])
+    lines.extend(['', '바로 하기', '아래 버튼이나 후속 명령으로 상세 보기 또는 답장 필요 브리핑을 이어갈 수 있습니다.'])
     return '\n'.join(lines)

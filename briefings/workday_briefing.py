@@ -9,7 +9,7 @@ from briefings.tasks_briefing import _fetch_tasks
 
 
 DEFAULT_NEXT_ACTIONS = [
-    BriefingAction('📄 메일 상세', '1번 메일 자세히 보여줘'),
+    BriefingAction('📮 최근 메일', '최근 메일 5개 보여줘'),
     BriefingAction('📅 오늘 일정', '오늘 일정 뭐야?'),
     BriefingAction('✅ 전체 할 일', '전체 할 일 보여줘'),
 ]
@@ -18,7 +18,7 @@ DEFAULT_NEXT_ACTIONS = [
 def get_workday_next_actions(has_important_mail: bool = True, has_events: bool = True, has_tasks: bool = True) -> list[BriefingAction]:
     actions: list[BriefingAction] = []
     if has_important_mail:
-        actions.append(BriefingAction('📄 우선 메일 보기', '1번 메일 자세히 보여줘'))
+        actions.append(BriefingAction('📮 우선 메일 목록', '최근 메일 5개 보여줘'))
     if has_events:
         actions.append(BriefingAction('📅 오늘 일정 확인', '오늘 일정 뭐야?'))
     if has_tasks:

@@ -86,6 +86,15 @@ python3 telegram_mail_agent.py '제안 히스토리 보여줘'
 - `scripts/update_briefing_cron.py`
   - 예약 브리핑용 crontab 내용 생성/갱신 지원
 
+## 스케줄 운영 원칙
+- 현재 메일 봇 정기 실행은 **OS crontab 직접 실행이 아니라 OpenClaw Gateway cron** 기준으로 운영합니다.
+- 메일 관련 정기 작업은 **`mail-agent` 귀속 작업**으로 관리하는 것을 원칙으로 합니다.
+- 기본 스케줄은 다음과 같습니다.
+  - 30분마다 메일 점검: `scripts/poll_mail_workflow.py`
+  - 매일 09:00 업무 브리핑: `scripts/send_workday_briefing.py`
+  - 매일 11:00 메일 브리핑: `scripts/send_mail_briefing.py`
+  - 매일 16:00 메일 브리핑: `scripts/send_mail_briefing.py`
+
 ## 환경 변수
 `.env.example`를 참고해 `.env`를 준비하면 실제 메일/텔레그램 연결이 가능합니다.
 

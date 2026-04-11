@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from agents.collector import fetch_unread_emails
+from agents.collector import fetch_recent_emails
 from agents.classifier import classify_email
 from briefing_actions import BriefingAction
 from briefings.calendar_briefing import fetch_calendar_events
@@ -41,7 +41,7 @@ def get_workday_next_actions(has_important_mail: bool = True, has_events: bool =
 
 
 def build_workday_briefing() -> str:
-    emails = fetch_unread_emails(limit=5)
+    emails = fetch_recent_emails(limit=10)
     important = [e for e in emails if classify_email(e) == '중요'][:3]
     events = fetch_calendar_events('today')
     tasks = [t for t in _fetch_tasks('today') if t.get('status') != 'completed']
